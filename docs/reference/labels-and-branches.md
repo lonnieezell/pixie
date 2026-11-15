@@ -73,7 +73,7 @@ Pushes and PRs:
 
 | Skill | Posts |
 |---|---|
-| `plan-task` | Creates the issue. Adds `ready-for-agent` only if you say yes. No other labels, assignees, or milestones unless you ask. When planning from an existing issue, removes `needs-triage` from that issue. |
+| `plan-task` | Creates the issue, or writes the plan into the source issue if you planned from one and chose to update it. Adds `ready-for-agent` only if you say yes. No other labels, assignees, or milestones unless you ask. When planning from an existing issue, removes `needs-triage` from that issue. |
 | `tackle` | A claim comment, a tier comment such as `Tier 2 (medium), route implement: ...`, and a comment saying why if it stops |
 | `babysit` | A reply on every review-bot thread it handles: `Fixed in <sha>: ...`, `Not changing: ...`, or a note that it's deferred to maintainers |
 | `poke` | Issues for the findings you pick, one per finding |

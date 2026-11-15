@@ -147,7 +147,7 @@ Planned from #<source-N>
 
 ### Notes on sections
 
-- **Planned from** links the source issue. Leave the line out when the input was pasted text.
+- **Planned from** links the source issue when the plan goes in a new issue. Leave the line out when the input was pasted text, or when you update the source issue itself.
 - **Build steps** are written for a coding agent. Each step names its files, the pattern to copy, and its tests, and leaves the app working. Usually 3–5 steps (see the size check in Step 3). Don't paste implementations; a schema line or function signature is fine when it removes ambiguity.
 - **Done when** is the requirement list `tdd` checks itself against. Each item is one behavior a test can assert. No implementation details ("uses a service class") and no compound items.
 - **Assumed defaults** holds only what the user left to your default in Step 5. `tackle` builds with them as written. Nothing in a posted issue should read as an unanswered question, or `tackle` may stop and mark it `agent-blocked`.
@@ -171,18 +171,27 @@ Use one diagram, or two only if the change has both a meaningful flow and a sche
 3. Ask: "Want any changes, or should I create the issue?" Revise until they approve.
 4. Find the queue label. If `docs/agents/pixie-labels.md` exists, use its label for the `ready-for-agent` role. Otherwise use `ready-for-agent`. Every mention of `ready-for-agent` below means this label. Quote it in commands. Ask with AskUserQuestion whether to label it `ready-for-agent`, so `/pixie:tackle` can pick it up. Default to **no**: queuing it is the user's go-ahead, not yours.
 5. Before posting, confirm the target repo with `gh repo view --json nameWithOwner -q .nameWithOwner` and check `gh auth status`. If the repo looks wrong, ask. If the user wants the label, check it exists with `gh label list --json name --limit 200`, and create it with `gh label create "ready-for-agent"` if it doesn't.
-6. Create it, adding `--label ready-for-agent` only if the user said yes:
-   ```bash
-   gh issue create --title "<title>" --body-file <draft-path>
-   ```
-   Don't add other labels, assignees, or milestones unless the user asks for them. For a split, create the issues in build order, and add `Depends on #X` under **Source** in each one after the first, naming the issue it builds on.
-7. If there's a source issue and it had the `needs-triage` label when you read it, remove it now that the plan is filed. Use the label `docs/agents/pixie-labels.md` maps the `needs-triage` role to, if that file exists:
+6. If there's a source issue and the plan isn't split, ask with AskUserQuestion whether to **update the source issue** with the plan or **create a new issue**. Recommend updating it. A split always creates new issues.
+7. Post it, adding the label only if the user said yes:
+   - **New issue:**
+     ```bash
+     gh issue create --title "<title>" --body-file <draft-path>
+     ```
+     Add the label with `--label "ready-for-agent"`. For a split, create the issues in build order, and add `Depends on #X` under **Source** in each one after the first, naming the issue it builds on.
+   - **Update the source issue:** drop the **Planned from** line from the draft first. The original text is already kept in the collapsed PM request.
+     ```bash
+     gh issue edit <source-N> --title "<title>" --body-file <draft-path>
+     ```
+     Add the label with `--add-label "ready-for-agent"`.
+
+   Don't add other labels, assignees, or milestones unless the user asks for them.
+8. If there's a source issue and it had the `needs-triage` label when you read it, remove it once the plan is posted. Use the label `docs/agents/pixie-labels.md` maps the `needs-triage` role to, if that file exists:
    ```bash
    gh issue edit <source-N> --remove-label "needs-triage"
    ```
-   Skip this if no issue was created. Don't close the source issue or change anything else on it.
-8. Delete the draft file.
-9. Reply with the issue URL and one next step: `/pixie:tackle N` if it's labeled, otherwise "Label it `ready-for-agent`, then run `/pixie:tackle N`."
+   Skip this if nothing was posted. Don't close the source issue. If you created a new issue, change nothing else on the source issue.
+9. Delete the draft file.
+10. Reply with the issue URL and one next step: `/pixie:tackle N` if it's labeled, otherwise "Label it `ready-for-agent`, then run `/pixie:tackle N`."
 
 ## Final check before showing the draft
 

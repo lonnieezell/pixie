@@ -224,12 +224,13 @@ Turns a product manager's task description into a short implementation plan. The
 4. Claude checks open issues and PRs for the same work. If an issue already covers the task, it asks whether to go on.
 5. Claude shows you the draft title and body. It asks you each open question, with its own default as the recommended answer. Ask for changes, or approve it.
 6. Claude asks whether to label the issue `ready-for-agent` so `tackle` can pick it up. The default is no.
-7. Claude creates the issue and replies with its URL and the `tackle` command to run next. If you named a source issue, the new issue links it, and Claude removes `needs-triage` from the source issue.
+7. If you named a source issue, Claude asks whether to write the plan into that issue or create a new one that links it. A split always creates new issues.
+8. Claude posts the plan and replies with the issue URL and the `tackle` command to run next. If you named a source issue, Claude removes `needs-triage` from it.
 
 **Limits:**
 
 - It writes no code. It stops once the issue exists.
-- It adds only the `ready-for-agent` label, and only if you say yes. On a source issue, it only removes `needs-triage`. It doesn't close it. It adds assignees, milestones, or other labels only when you ask.
+- It adds only the `ready-for-agent` label, and only if you say yes. On a source issue, it removes `needs-triage`, and replaces the title and body only if you chose to update it. It never closes it. It adds assignees, milestones, or other labels only when you ask.
 - If a plan needs more than about five build steps, it offers to split it into several issues, one PR each.
 
 ## poke
