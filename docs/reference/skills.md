@@ -337,7 +337,9 @@ Takes one GitHub issue from `ready-for-agent` to an open pull request. It:
 4. Does the work, then runs lint, simplify, and code review. Hard issues also get a security review.
 5. Opens the PR and swaps the label to `agent-pr`.
 
-**Argument (optional):** an issue number, such as `/pixie:tackle 142`.
+**Arguments (optional):** an issue number, such as `/pixie:tackle 142`, and `unattended` for scheduled runs. With `unattended`, it needs a number and never asks: wherever it would ask, it stops before claiming the issue and says why.
+
+If the issue has a reproduction test from `checkup` or `catch`, it uses that test as the start of its regression test.
 
 **Before it starts:** your working tree must be clean, and you need write access to the repo.
 
