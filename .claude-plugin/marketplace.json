@@ -1,0 +1,14 @@
+{
+  "name": "pixie",
+  "description": "Marketplace for Pixie, a code creation workflow helper",
+  "owner": {
+    "name": "Lonnie Ezell"
+  },
+  "plugins": [
+    {
+      "name": "pixie",
+      "source": "./",
+      "description": "A code creation workflow helper"
+    }
+  ]
+}
