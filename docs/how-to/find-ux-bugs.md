@@ -24,7 +24,9 @@ Claude then runs the new skill once from start to finish on one feature, and fix
 
 Commit the `.claude/skills/verify-<app>/` folder so your team and future runs can use it.
 
-You can skip this step. `poke` still works without it, but it falls back to weaker ways of driving the app. With no way to drive the app, it reviews the code only.
+Once the skill is committed, other skills use it too. `tackle` and `untangle` drive the features they changed, `diagnose` and `tdd` use it to reproduce bugs, and `checkup` and `catch` use it to reproduce findings. See [Live checks](../reference/live-checks.md) for what each one does.
+
+You can skip this step. `poke` still works without it, but it falls back to weaker ways of driving the app. With no way to drive the app, it reviews the code only. The other skills skip their live checks.
 
 ## 2. Poke at one section
 
@@ -82,8 +84,23 @@ It ends with one of three results:
 - **Changed:** it opened one PR with tested fixes to the verification skill.
 - **Blocked:** it couldn't finish, and it says why.
 
+## 5. Choose which skills use it
+
+Every skill that can use the verification skill does so by default. To stop one, for example because the app is slow to start and `untangle` runs often, create `docs/agents/pixie.json` and set that skill to `false`:
+
+```json
+{
+  "liveVerify": {
+    "untangle": false
+  }
+}
+```
+
+Commit the file so your team and scheduled runs use the same settings. The skills you leave out keep their live checks. For every key, see [Live checks](../reference/live-checks.md).
+
 ## Related
 
 - [`create-verifier` reference](../reference/skills.md#create-verifier)
 - [`poke` reference](../reference/skills.md#poke)
 - [`maintain-verifier` reference](../reference/skills.md#maintain-verifier)
+- [Live checks](../reference/live-checks.md)

@@ -89,6 +89,7 @@ Pushes and PRs:
 | `.prune/<area>/` | `prune-tests` | No. It's added to `.git/info/exclude`. Delete it when you're done. |
 | `docs/agents/pixie-labels.md` | `setup`, or you | Yes. Commit it so everyone uses the same labels. |
 | `docs/agents/checkup.json` | You | Yes. Settings for `checkup` and `catch`. |
+| `docs/agents/pixie.json` | You | Yes. Turns live checks off per skill. See [Live checks](live-checks.md). |
 | `docs/agents/checkup-baseline.json` | `checkup`, through the baseline PR | Yes, once you merge the PR |
 | `ai/checkup/DATE-HHMM/`, `ai/catch/DATE-HHMM/` | `checkup`, `catch` | No. They add `ai/` to `.git/info/exclude`. |
 | `.kimun.toml` | You, with `km init` (or `setup` runs it if you say yes) | Your choice. Commit it to share thresholds. |

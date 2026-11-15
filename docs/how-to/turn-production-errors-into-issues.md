@@ -100,7 +100,7 @@ Claude's summary at the end of the run lists the errors `catch` didn't file, and
 
 ## 4. File and triage the issues
 
-Claude lists the confirmed findings it would file, and asks once. Say yes, and each one becomes a `needs-triage` issue with a "Production impact" section showing the event and user counts.
+Claude lists the confirmed findings it would file, and asks once. Say yes, and each one becomes a `needs-triage` issue with a "Production impact" section showing the event and user counts. If the repo has a verification skill, Claude also tries to reproduce the error on a local copy of the app, never in production. When it can, the issue has a "Reproduced in the running app" section.
 
 Triage them the same way as `checkup` issues. See [Triage each issue](audit-a-codebase.md#4-triage-each-issue).
 

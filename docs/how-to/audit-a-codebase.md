@@ -47,7 +47,7 @@ The report is at `ai/checkup/DATE-HHMM/report.md`. It has four parts:
 
 Claude lists the confirmed high and critical findings that have enough evidence, and asks once whether to file them. Say yes, and each one becomes a GitHub issue labeled `needs-triage`.
 
-Each issue is written so `tackle` can work from it. It has a summary, the current and desired behavior, acceptance criteria, and the evidence, quoted from the code.
+Each issue is written so `tackle` can work from it. It has a summary, the current and desired behavior, acceptance criteria, and the evidence, quoted from the code. If the repo has a verification skill, Claude also tries to reproduce each finding in the running app on your machine. When it can, the issue has a "Reproduced in the running app" section with the steps and what the app did.
 
 `checkup` won't file the same finding twice:
 
