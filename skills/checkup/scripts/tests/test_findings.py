@@ -166,6 +166,19 @@ class RenderTest(unittest.TestCase):
                     self.assertEqual(shown.count("## Acceptance criteria"), 1)
                     self.assertNotIn("@octocat", body)
 
+    def test_prose_blocks_wrap_long_lines(self):
+        """Regression: one-line prose in a fenced block scrolled off the side of the issue."""
+        prose = " ".join(f"word{i}" for i in range(60))
+        f = F.merge([raw(claim=prose, failure_scenario=prose, suggested_fix=prose)])[0]
+        f.update(severity="high", verifier_reason=prose)
+        body = F.render_brief(f, "abcdef1234567890", "checkup")
+        blocks = re.findall(r"~~~text\n(.*?)\n~~~", body, re.S)
+        prose_blocks = [b for b in blocks if b.startswith("word0")]
+        self.assertEqual(len(prose_blocks), 4)
+        for block in prose_blocks:
+            self.assertTrue(all(len(line) <= 80 for line in block.splitlines()))
+            self.assertEqual(" ".join(block.split()), prose)
+
     def test_untrusted_text_cannot_carry_pixie_tokens(self):
         body = self.brief(claim="see pixie-fp-0123456789ab and pixie-ext-sentry-1 <!-- pixie-still-present -->")
         for token in ("pixie-fp-0123456789ab", "pixie-ext-sentry-1", "pixie-still-present"):
