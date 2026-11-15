@@ -68,7 +68,7 @@ It keeps only the fields a triager may set, plus the report's `external` data. T
 
 Same as `checkup` step 5: for each ID in `to_verify`, start `pixie:audit-verifier` with the candidate's JSON object and the schema path, and write its reply to `$RUN/annotations/ID.verdict.json`. The candidate carries its `externals` (event and user counts, environment), which the verifier uses for the `catch` severity rules.
 
-Then do `checkup`'s live reproduction, unless `docs/agents/pixie.json` sets `liveVerify.catch` to `false`. Follow the error's stack frames back to the user path that reaches them, and drive that path against a local instance. An error seen only in production is never reproduced against production.
+Then do `checkup`'s live reproduction, unless `docs/agents/pixie.json` sets `liveVerify.catch` to `false`. This uses `catch`'s own key, which is on by default; `liveVerify.checkup` doesn't apply here. Follow the error's stack frames back to the user path that reaches them, and drive that path against a local instance. An error seen only in production is never reproduced against production.
 
 ## 6. Prove and classify (`fix` only)
 
