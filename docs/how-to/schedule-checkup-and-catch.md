@@ -93,6 +93,7 @@ jobs:
 Things to adjust:
 
 - **Runtime setup.** Add the steps your project needs so its tests and linters run, such as `composer install` or `npm ci`. The run needs `python3`, `git`, `gh`, `jq`, your test runner and your linters.
+- **Incremental runs.** `unattended` audits only the shards that changed since the baseline, and reuses the findings for the rest, so a quiet week costs little. The first run, with no baseline yet, audits everything. Unchanged code is never hunted again on its own, so add a second, rarer schedule (monthly, say) that runs `/pixie:checkup unattended full`.
 - **The regression step.** It fails the job when the run regressed. A full run re-hunts every shard, and hunters don't find exactly the same things each time, so scores can wobble. If the job fails without a real change, raise `scoreDropThreshold`.
 - **Install commands.** Check the Claude Code install and plugin commands against the current Claude Code docs.
 
@@ -196,6 +197,8 @@ orca automations create --name "pixie catch" \
   --provider claude --repo path:/abs/path/to/repo --setup skip \
   --prompt "/pixie:catch unattended" --disabled --json
 ```
+
+This audits only the shards that changed since the baseline. For an occasional full re-audit, create a second, monthly automation with the prompt `/pixie:checkup unattended full`.
 
 Orca has no concurrency group, so schedule the two far enough apart that they don't overlap. A full `checkup` can take a few hours on a large repo.
 

@@ -10,7 +10,7 @@ allowed-tools: Bash(gh auth status), Bash(gh repo view:*), Bash(git rev-parse:*)
 Audit the code along three dimensions (security, performance, bugs), keep only findings that survive an attempt to refute them, score the result, and hand confirmed high and critical findings to GitHub as issues `tackle` can fix.
 
 ```
-/pixie:checkup [scores] [PATH] [unattended] [fix]
+/pixie:checkup [scores | full] [PATH] [unattended] [fix]
 /pixie:checkup permissions
 ```
 
@@ -19,7 +19,8 @@ Audit the code along three dimensions (security, performance, bugs), keep only f
 | none | Full audit of the whole repo, interactive |
 | `scores` | Regression check: audit only shards changed since the baseline, reuse the rest, report scores and deltas. Files nothing. |
 | `PATH` | Audit only that folder or file. Doesn't touch the baseline. |
-| `unattended` | No questions. Files issues and publishes the baseline (see "Unattended mode") |
+| `unattended` | No questions. Audits only shards changed since the baseline (every shard when there's no baseline yet), files issues and publishes the baseline (see "Unattended mode") |
+| `full` | With `unattended`, re-audit every shard instead of only the changed ones. Run it now and then (say monthly), because unchanged code is otherwise never hunted again. |
 | `fix` | Also proves auto-fix candidates with a failing test and queues them for `tackle` |
 | `permissions` | Audits nothing. Runs `python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py permissions` and shows its output as-is: the allow rules an unattended run needs, with this install's exact paths. Then stop. |
 
@@ -39,9 +40,9 @@ Roles come from `docs/agents/pixie-labels.md` when it exists, as in `tackle`. Th
    ```bash
    python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py plan --mode MODE [--path PATH] --out "$RUN/plan.json"
    ```
-   `MODE` is `changed` for `scores` and `full` otherwise. It prints the shard count, the number of hunter jobs, the number of findings carried from shards it won't audit, the gaps, and which baseline it read (the branch of the open baseline PR first, then `HEAD`). Shards over `maxShards` aren't audited: their baseline findings are carried as `stale`, which keeps them in the score but doesn't file them, and they're listed as gaps.
+   `MODE` is `changed` for `scores`, and for `unattended` without `full`. It's `full` otherwise. With no baseline, `changed` audits every shard. It prints the shard count, the number of hunter jobs, the number of findings carried from shards it won't audit, the gaps, and which baseline it read (the branch of the open baseline PR first, then `HEAD`). Shards over `maxShards` aren't audited: their baseline findings are carried as `stale`, which keeps them in the score but doesn't file them, and they're listed as gaps.
 
-   **Done when** `plan.json` exists. If it reports zero jobs in `scores` mode, nothing changed: skip to step 4, which still has to run so the carried findings reach step 7.
+   **Done when** `plan.json` exists. If it reports zero jobs in `changed` mode, nothing changed: skip to step 4, which still has to run so the carried findings reach step 7.
 
 ## 2. Gather leads
 
@@ -88,7 +89,7 @@ It validates every result, keeps only the fields a hunter may set (a hunter can'
 
 ## 5. Verify
 
-For each ID in `candidates.json` `to_verify`, start `pixie:audit-verifier` in the background, up to 10 at a time. Give it the candidate's JSON object from `candidates.json` and the absolute path of `finding-schema.md`. Give it nothing about how the finding was found.
+For each ID in `candidates.json` `to_verify`, start `pixie:audit-verifier` in the background, up to 10 at a time. For IDs also listed in `verify_light` (hinted below `fileSeverities`, so they only affect the score unless the verifier raises them), start it with `model: "sonnet"`. Give it the candidate's JSON object from `candidates.json` and the absolute path of `finding-schema.md`. Give it nothing about how the finding was found.
 
 Write each reply as-is to `$RUN/annotations/ID.verdict.json`, where `ID` is the candidate's ID. If a reply isn't valid JSON, run that verifier once more. If it fails again, write `{"verdict": "needs-human", "verifier_reason": "verifier returned no verdict"}`.
 
@@ -171,6 +172,7 @@ End with:
 
 When the arguments include `unattended`, or no human is available:
 - Never ask questions. Where a step says "ask", take the unattended choice it names.
+- Plan in `changed` mode unless the arguments include `full` (step 1).
 - Run steps 8 and 9 for whole-repo runs, and step 10 with `fix`.
 - When something is unclear, take the conservative option: don't file, and say so in the report.
 - Merging, approving, closing and force-pushing to any branch other than `checkup/baseline` are never done, in any mode.

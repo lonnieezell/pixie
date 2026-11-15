@@ -82,6 +82,24 @@ class MergeFinalizeTest(unittest.TestCase):
         self.assertTrue(findings["confirmed"][0]["stale"])
         self.assertEqual(nxt["shards"], {"a": "old"})
 
+    def test_findings_hinted_below_file_severities_get_the_light_verifier(self):
+        hints = {"critical": "critical", "high": "high", "medium": "medium", "none": None, "low": "low"}
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            (run / "hunters").mkdir()
+            found = []
+            for name, hint in hints.items():
+                f = dict(FINDING, file=f"src/{name}.php", symbol=name, title=name)
+                if hint:
+                    f["severity_hint"] = hint
+                found.append(f)
+            (run / "hunters/a.bug.json").write_text(json.dumps({"status": "ISSUES", "findings": found}))
+            self.run_cli("merge", "--results", str(run / "hunters"), "--out", str(run / "candidates.json"))
+            out = json.loads((run / "candidates.json").read_text())
+        by_title = {c["title"]: c["id"] for c in out["candidates"]}
+        self.assertEqual(set(out["to_verify"]), {by_title[n] for n in ("critical", "high", "medium", "none")})
+        self.assertEqual(set(out["verify_light"]), {by_title[n] for n in ("medium", "none")})
+
     def test_self_confirmed_finding_still_goes_to_the_verifier(self):
         with tempfile.TemporaryDirectory() as tmp:
             run = Path(tmp)
