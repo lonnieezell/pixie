@@ -8,10 +8,12 @@
   file      files eligible findings on GitHub                -> filed.json
   promote   queues eligible issues for tackle, within the weekly cap (prints issue numbers)
   publish   commits baseline-next.json to the rolling baseline PR
+  permissions  prints exact allow rules for file, promote and publish, for unattended runs
 """
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -75,7 +77,8 @@ def plan_jobs(shards, baseline, mode, max_shards):
 
 
 def cmd_plan(a, cfg):
-    blobs = S.select(S.git_blobs("."), cfg["exclude"], cfg["includeTests"])
+    tracked = S.git_blobs(".")
+    blobs = S.select(tracked, cfg["exclude"], cfg["includeTests"], S.git_marked(".", tracked))
     lines = S.count_lines(".", blobs)
     shards = S.build(blobs, cfg["shardSize"], S.git_churn("."), lines)
     if a.path:
@@ -233,6 +236,15 @@ def cmd_publish(a, cfg):
     print(B.publish(_load(a.file), _repo()["defaultBranchRef"]["name"], "."))
 
 
+def cmd_permissions(a, cfg):
+    skills = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    own = f"python3 {skills}/checkup/scripts/checkup.py"
+    via_catch = f"python3 {skills}/catch/../checkup/scripts/checkup.py"
+    rules = [f"Bash({own} {c} *)" for c in ("file", "promote", "publish")]
+    rules += [f"Bash({via_catch} {c} *)" for c in ("file", "promote")]
+    print(json.dumps(rules, indent=2))
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -250,6 +262,7 @@ def main(argv=None):
     s = sub.add_parser("promote"); s.add_argument("--findings", required=True); s.add_argument("--filed", required=True)
     s.add_argument("--source", choices=["checkup", "catch"], required=True); s.add_argument("--out", required=True)
     s = sub.add_parser("publish"); s.add_argument("--file", required=True)
+    sub.add_parser("permissions")
     a = p.parse_args(argv)
     cfg = C.load(".")
     globals()[f"cmd_{a.cmd}"](a, cfg)

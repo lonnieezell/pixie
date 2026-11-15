@@ -2,7 +2,7 @@
 name: checkup
 description: Audit the codebase for security flaws, performance traps and bugs with parallel read-only hunter agents, verify every finding adversarially, score each dimension against a baseline, and file confirmed high and critical findings as needs-triage issues that tackle can fix. Use for /checkup, a weekly audit, or a regression check of the scores.
 disable-model-invocation: true
-allowed-tools: Bash(gh auth status), Bash(gh repo view:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git worktree list:*), Bash(km --version), Bash(km score:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py plan *), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py merge *), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py brief *), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py finalize *)
+allowed-tools: Bash(gh auth status), Bash(gh repo view:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git worktree list:*), Bash(km --version), Bash(km score:*), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py plan *), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py merge *), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py brief *), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py finalize *), Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py permissions)
 ---
 
 # Checkup
@@ -11,6 +11,7 @@ Audit the code along three dimensions (security, performance, bugs), keep only f
 
 ```
 /pixie:checkup [scores] [PATH] [unattended] [fix]
+/pixie:checkup permissions
 ```
 
 | Argument | Effect |
@@ -20,6 +21,7 @@ Audit the code along three dimensions (security, performance, bugs), keep only f
 | `PATH` | Audit only that folder or file. Doesn't touch the baseline. |
 | `unattended` | No questions. Files issues and publishes the baseline (see "Unattended mode") |
 | `fix` | Also proves auto-fix candidates with a failing test and queues them for `tackle` |
+| `permissions` | Audits nothing. Runs `python3 ${CLAUDE_SKILL_DIR}/scripts/checkup.py permissions` and shows its output as-is: the allow rules an unattended run needs, with this install's exact paths. Then stop. |
 
 The scripts do every step that doesn't need judgement. Run every command from the repo root, exactly as written: `plan`, `merge`, `brief` and `finalize` only write under `ai/`, so they run without a prompt. `file`, `promote` and `publish` write to GitHub, so they still ask.
 

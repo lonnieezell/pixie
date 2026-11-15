@@ -1,4 +1,5 @@
 """The plan, merge and finalize steps, run through the CLI on a temp run folder."""
+import io
 import json
 import sys
 import tempfile
@@ -123,6 +124,21 @@ class MergeFinalizeTest(unittest.TestCase):
                              "--annotations", str(run / "annotations"), "--out-dir", str(run))
                 found = json.loads((run / "findings.json").read_text())["confirmed"][0]
                 self.assertEqual(found["evidence_rung"], rung)
+
+
+class PermissionsTest(unittest.TestCase):
+    def test_prints_exact_rules_for_the_github_steps(self):
+        skills = "/opt/pixie/skills"
+        with mock.patch("checkup.__file__", f"{skills}/checkup/scripts/checkup.py"), \
+                mock.patch("checkup.C.load", return_value=checkup.C.DEFAULTS), \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            checkup.main(["permissions"])
+        own = f"python3 {skills}/checkup/scripts/checkup.py"
+        via_catch = f"python3 {skills}/catch/../checkup/scripts/checkup.py"
+        self.assertEqual(json.loads(out.getvalue()), [
+            f"Bash({own} file *)", f"Bash({own} promote *)", f"Bash({own} publish *)",
+            f"Bash({via_catch} file *)", f"Bash({via_catch} promote *)",
+        ])
 
 
 if __name__ == "__main__":
