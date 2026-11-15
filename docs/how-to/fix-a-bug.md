@@ -37,7 +37,7 @@ Run `diagnose` with the bug report or an issue reference:
 
 Claude will:
 
-1. Build a feedback loop. This is one fast command that fails on this bug. Claude shows you the command and its failing output.
+1. Build a feedback loop. This is one fast command that fails on this bug. If the repo has a verification skill, Claude uses it to start and drive the app where you saw the bug. Claude shows you the command and its failing output.
 2. Shrink the repro to the smallest case that still fails.
 3. Test three to five ranked guesses about the cause, and confirm one with runtime evidence.
 4. Remove all its debug code.
@@ -71,7 +71,7 @@ If the bug is already a GitHub issue, you can let `tackle` choose for you. Add t
 /pixie:tackle 142
 ```
 
-`tackle` rates the issue. It sends bugs with an unknown cause to `diagnose`, and everything else to `tdd`. Then it reviews the change and opens a PR. See the [tutorial](../tutorial/first-issue-to-pr.md) for a full run.
+`tackle` rates the issue. It sends bugs with an unknown cause to `diagnose`, and everything else to `tdd`. Then it reviews the change. If the repo has a verification skill, it also drives the changed features in the running app. Then it opens a PR. See the [tutorial](../tutorial/first-issue-to-pr.md) for a full run.
 
 ## Related
 

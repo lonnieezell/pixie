@@ -57,6 +57,7 @@ Install it first. See [Prerequisites](../README.md#prerequisites) and [Install t
 - [Labels, branches, and files](reference/labels-and-branches.md)
 - [Agents and the code-health hook](reference/agents-and-hook.md)
 - [checkup and catch settings](reference/checkup-config.md)
+- [Live checks](reference/live-checks.md)
 
 **Explanation**
 

@@ -146,7 +146,11 @@ def _annotations(folder):
     out = {}
     if folder and Path(folder).exists():
         for path in sorted(Path(folder).glob("*.json")):
-            out.setdefault(path.name.split(".", 1)[0], {}).update(_load(path))
+            ann, new = out.setdefault(path.name.split(".", 1)[0], {}), _load(path)
+            rung = max(ann.get("evidence_rung", 0), new.get("evidence_rung", 0))
+            ann.update(new)
+            if rung:
+                ann["evidence_rung"] = rung
     return out
 
 

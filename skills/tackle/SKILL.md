@@ -13,7 +13,7 @@ Take one GitHub issue all the way from `ready-for-agent` to an open pull request
 2. Claim it
 3. Classify it
 4. Do the work (bug fix or TDD)
-5. Review (lint → simplify → code review → security review for tier 3)
+5. Review (lint → simplify → code review → security review for tier 3 → live check)
 6. Open the PR
 
 Work on one issue per run. Don't merge, approve or close anything. The PR is handed to a human.
@@ -150,7 +150,12 @@ The work is already committed, so the working tree is clean. Point each review a
 2. **Simplify.** Run `/simplify` on the branch's changes (`origin/DEFAULT...HEAD`). Accept changes that keep behaviour and pass the tests. Simplify runs before code review so the review sees the code that ships.
 3. **Code review.** Run `/code-review` with the tier's effort level as its first argument and the branch as the target, e.g. `/code-review medium agent/N-short-slug`. Always pass the level: the skill otherwise reuses the last level typed. For each finding, check it against the code, then either fix it or note why you're not changing it. If fixes were substantial, run the review once more. Two rounds at most.
 4. **Security review (tier 3 only).** Run `/security-review`. Fix every confirmed finding. If one needs a design decision, stop (see "When stopping").
-5. **Final check.** Lint must pass. The full test suite must show no failures beyond the baseline from step 2. List any baseline failures in the PR.
+5. **Live check.** Tests show the code paths work. This step shows the feature works in the running app. Skip it, and say why in the PR, when the project has no verification skill (`.claude/skills/verify-*/`, such as one made by `create-verifier`) or the change touches nothing a user can reach, or `docs/agents/pixie.json` sets `liveVerify.tackle` to `false`.
+   - Read the skill's `features/README.md` and pick every feature whose source the branch changes (`git diff --name-only origin/DEFAULT...HEAD`). Drive every journey the map lists for those features, not just the most convenient entry point.
+   - Follow the skill's own Launch, Doctor, Drive, Evidence and Cleanup sections, from this branch's checkout. If the skill says two instances can't run side by side and one you didn't start is already running, skip this step and say so in the PR. Never drive someone else's instance.
+   - A journey that fails because of this change is a bug in the work. Fix it, add a regression test for it where a seam exists, re-run the tests, and drive it again. If the same journey also fails on `DEFAULT`, it isn't caused by this change: list it in the PR as already broken. A feature you can't reach goes in the PR with the prerequisite that blocked it (auth, OS, external state).
+   - Run the skill's Cleanup when you're done, including after a failed drive. The evidence stays where the skill keeps it.
+6. **Final check.** Lint must pass. The full test suite must show no failures beyond the baseline from step 2. List any baseline failures in the PR.
 
 ## 6. Open the PR
 
@@ -170,6 +175,7 @@ The PR title follows "Commits", e.g. `fix(#N): short summary`. The PR body shoul
 - tier, difficulty and route, with the classifier's reason, and any tier bump
 - tests added
 - review results: what lint fixed, what simplify changed, the code-review findings (fixed or not changed, with reasons), and the security review result for tier 3
+- live check: the features and journeys driven and what each one showed, or why the step was skipped. Evidence files stay on the machine that ran them, so describe them and don't link them.
 - any test failures that were already on the default branch
 - anything a reviewer should look at closely
 

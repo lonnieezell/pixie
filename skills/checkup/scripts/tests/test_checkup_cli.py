@@ -98,6 +98,32 @@ class MergeFinalizeTest(unittest.TestCase):
         self.assertEqual(cand["externals"], [{"tracker": "sentry", "id": "1"}])
         self.assertEqual(cand["shard"], "sentry-1")
 
+    def test_annotations_keep_the_highest_evidence_rung(self):
+        """Regression: the verdict file sorts after repro and live, so its rung 3 overwrote theirs."""
+        verdict = {"verdict": "confirmed", "severity": "high", "evidence_rung": 3}
+        repro = {"repro": {"test_path": "t", "command": "c", "test_code": "x", "output": "o"}, "evidence_rung": 4}
+        live = {"live_repro": {"steps": "s", "observed": "o"}, "evidence_rung": 5}
+        cases = [
+            ("verifier only", {"verdict": verdict}, 3),
+            ("proven by a test", {"verdict": verdict, "repro": repro}, 4),
+            ("reproduced in the app", {"verdict": verdict, "repro": repro, "live": live}, 5),
+        ]
+        for name, files, rung in cases:
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                run = Path(tmp)
+                (run / "triage").mkdir()
+                (run / "triage/sentry-1.json").write_text(json.dumps({"status": "ISSUES", "findings": [FINDING]}))
+                self.run_cli("merge", "--results", str(run / "triage"), "--source", "catch",
+                             "--out", str(run / "candidates.json"))
+                cid = json.loads((run / "candidates.json").read_text())["candidates"][0]["id"]
+                (run / "annotations").mkdir()
+                for kind, body in files.items():
+                    (run / f"annotations/{cid}.{kind}.json").write_text(json.dumps(body))
+                self.run_cli("finalize", "--candidates", str(run / "candidates.json"),
+                             "--annotations", str(run / "annotations"), "--out-dir", str(run))
+                found = json.loads((run / "findings.json").read_text())["confirmed"][0]
+                self.assertEqual(found["evidence_rung"], rung)
+
 
 if __name__ == "__main__":
     unittest.main()

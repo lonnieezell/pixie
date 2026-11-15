@@ -43,7 +43,7 @@ flowchart LR
 - **Build.** `tackle` takes one issue to a PR. It hands bugs with an unknown cause to `diagnose`, and everything else to `tdd`. `untangle` refactors on its own branch.
 - **Ship.** `babysit` brings PRs to a mergeable state. You merge.
 
-The rest of the skills support this loop. `how` and `huh` help you understand code and replies. `create-verifier` and `maintain-verifier` give the agents a way to drive your app. `prune-tests` trims redundant tests without weakening the suite.
+The rest of the skills support this loop. `how` and `huh` help you understand code and replies. `create-verifier` and `maintain-verifier` give the agents a way to drive your app, which `tackle`, `diagnose`, `tdd`, `untangle`, `checkup`, `catch` and `poke` then use. `prune-tests` trims redundant tests without weakening the suite.
 
 GitHub is the shared record. Issues hold the plan, labels show where each issue is, and PRs hold the result. Pixie uses GitHub for this even when your team plans work in another tool, such as Jira. That keeps the record of the code next to the code.
 
@@ -75,6 +75,7 @@ Several skills refuse to accept "it should work" as an answer:
 - `tdd` writes the test first, predicts how it will fail, and watches it fail that way. A test that fails for the wrong reason proves nothing when it turns green.
 - `diagnose` won't form a theory until it has one command that fails on the bug. It won't fix anything until runtime evidence confirms the cause.
 - `create-verifier` runs the skill it wrote before handing it over. A verifier that was never run is a draft.
+- Once a repo has a verification skill, `tackle` and `untangle` drive the features they changed before they finish. A test shows that a code path works. A live check shows that the feature works for a user. `checkup` and `catch` reproduce findings in the app the same way, one at a time and in the main run, never in background agents. Two agents driving the same app at once would interfere with each other and spoil the evidence.
 - `prune-tests` compares coverage and the mutation score before and after, and puts back any test whose removal weakened them.
 
 The evidence goes where a reviewer can see it. For example, `tdd` puts the failing test output in each commit body.

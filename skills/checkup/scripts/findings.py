@@ -106,7 +106,7 @@ def apply_annotations(candidates, annotations):
     """Fold verifier, prover and classifier results into candidates.
 
     annotations maps candidate id -> dict of fields to set (verdict, severity,
-    verifier_reason, evidence_rung, repro, tier). Returns (confirmed, other)
+    verifier_reason, evidence_rung, repro, live_repro, tier). Returns (confirmed, other)
     where other holds refuted, needs-human and unverified findings for the report.
     """
     confirmed, other = [], []
@@ -269,6 +269,13 @@ def render_brief(f, sha, source):
             f"`{inline(repro['test_path'])}`, run with `{inline(repro['command'])}`",
             "", *fenced(repro["test_code"], 4000), "",
             "Output:", "", *fenced(repro["output"]), "",
+        ]
+    live = f.get("live_repro")
+    if live:
+        lines += [
+            "## Reproduced in the running app",
+            "Steps:", "", *fenced(live["steps"], 2000), "",
+            "Observed:", "", *fenced(live["observed"], 2000), "",
         ]
     lines += [
         "---",

@@ -71,7 +71,7 @@ Pulls recent production errors from Sentry and Coralogix and turns the real ones
 1. Fetches error groups from the configured sources over the `lookback` window, keeping those with at least `minEvents` events. It redacts emails, tokens, IPs and long secrets, and never fetches request data, headers, user data or breadcrumbs.
 2. Maps each stack frame to a repo file. If the lines around the frame closest to the error changed since the error's release (or, without a release commit, if that file was committed after the error was last seen), it marks the report "possibly fixed" and doesn't file it.
 3. Runs one read-only `error-triager` agent per report. It traces the frames into the current code and writes a finding with a walked failure path.
-4. Sends every finding to the same fresh-context verifier `checkup` uses. A triager can't confirm its own finding, because the error text it read is untrusted.
+4. Sends every finding to the same fresh-context verifier `checkup` uses. A triager can't confirm its own finding, because the error text it read is untrusted. If the repo has a verification skill, it tries to reproduce each confirmed finding on a local instance of the app.
 5. Files confirmed findings as `needs-triage` issues with the event and user counts. A recurring error gets a "still present" comment, at most once a week, instead of a new issue.
 6. With `fix`, it proves eligible findings with a failing local test and queues them for `tackle`, within the weekly PR cap it shares with `checkup`.
 
@@ -102,7 +102,7 @@ Audits the codebase along three dimensions: security, performance and bugs. It k
 
 1. Splits the code into shards of up to 20 files, packing small neighbouring folders together, busiest first, and runs the repo's own audit and lint tools for leads.
 2. Starts three read-only hunter agents per shard, one per dimension. Each finding must name a concrete failure scenario and quote its evidence.
-3. Merges duplicates and findings with a shared root cause. A fresh-context verifier on Opus tries to refute each one, then sets its severity from a fixed rubric.
+3. Merges duplicates and findings with a shared root cause. A fresh-context verifier on Opus tries to refute each one, then sets its severity from a fixed rubric. If the repo has a verification skill, it tries to reproduce each confirmed finding it will file in the running app, and adds what it saw to the issue.
 4. Scores each dimension with a fixed formula and compares the scores with `docs/agents/checkup-baseline.json`. A new confirmed high or critical finding in code that changed since the baseline, or a drop larger than the threshold, counts as a regression. One found in unchanged code is reported as newly found instead.
 5. Files issues, deduped by fingerprint against every earlier issue. A finding closed as not planned is never filed again. Security findings go to issues, private draft advisories, or the report only, depending on `securityFindings`.
 6. Publishes the new baseline to a rolling `checkup/baseline` PR. When security findings don't go to issues (public repos, by default), the baseline keeps only their counts, never their locations or fingerprints.
@@ -146,7 +146,7 @@ Writes a verification skill for the current project. A verification skill is a r
 3. Writes a feature map: one file for each of the top 3–5 user-facing features, saying how to reach, drive, and prove each one.
 4. Runs the new skill once from start to finish on one feature, and fixes what fails.
 
-**Output:** a working, tested verification skill in your project. Other skills use it too: `poke` drives the app through it when one exists.
+**Output:** a working, tested verification skill in your project. Other skills use it too: `tackle`, `diagnose`, `tdd`, `untangle`, `checkup`, `catch` and `poke` drive the app through it when one exists. See [Live checks](live-checks.md) to turn this off per skill.
 
 Claude never runs this skill on its own. You must type `/pixie:create-verifier`. Run `maintain-verifier` later to keep it up to date.
 
@@ -162,6 +162,8 @@ Finds the root cause of a bug or a slowdown before fixing anything. First it bui
 - It keeps its scripts and harnesses in a temporary folder outside your repo.
 - It removes all debug code before the fix, so none of it gets committed.
 - Before `git bisect`, it requires a clean working tree, and it always resets bisect afterwards.
+
+If the repo has a verification skill, it uses it to drive the app for the feedback loop and the final re-check.
 
 **Output:** a verdict of *FIXED*, *DIAGNOSED*, *NOT REPRODUCED*, or *INCONCLUSIVE*, with the evidence behind it. Secrets are redacted.
 
@@ -241,7 +243,7 @@ Pokes at **one** section of an app the way a curious, impatient user would, and 
 **How it works:**
 
 1. Finds the section's code and the kinds of components it uses. Then it picks reference apps that set user expectations for each one, and builds a checklist of what users will try.
-2. Picks the best way to drive the running app: the project's own verification skill (such as one made by `create-verifier`), an app automation MCP server, browser automation against the dev server, computer use, or code only.
+2. Picks the best way to drive the running app: the project's own verification skill (such as one made by `create-verifier`), an app automation MCP server, browser automation against the dev server, computer use, or code only. With a verification skill, it drives every entry point the feature map lists for the section.
 3. Runs three passes. Two read-only subagents check code correctness and expectation gaps in the background. Meanwhile, Claude uses the live app in your conversation.
 4. Merges the findings, checks each one, and ranks them from S1 (data loss, crash, or blocked task) to S4 (polish). Then it stops any dev server or app it started.
 
@@ -334,7 +336,7 @@ Takes one GitHub issue from `ready-for-agent` to an open pull request. It:
 1. Picks the issue. With no number, it offers the oldest ready issues. If an earlier branch or PR exists for the issue, it asks whether to continue from it.
 2. Creates an `agent/<number>-<slug>` branch from the remote default branch, then claims the issue with the `agent-working` label.
 3. Rates the issue's difficulty and picks a route: `diagnose` for a bug with an unknown cause, `implement` (through `tdd`) for everything else.
-4. Does the work, then runs lint, simplify, and code review. Hard issues also get a security review.
+4. Does the work, then runs lint, simplify, and code review. Hard issues also get a security review. If the repo has a verification skill, it then drives the changed features in the running app.
 5. Opens the PR and swaps the label to `agent-pr`.
 
 **Arguments (optional):** an issue number, such as `/pixie:tackle 142`, and `unattended` for scheduled runs. With `unattended`, it needs a number and never asks: wherever it would ask, it stops before claiming the issue and says why.
@@ -367,6 +369,8 @@ Builds a change test-first in small slices. For each slice, it predicts how the 
 - It commits only the files each slice changed, so your other uncommitted work stays out. Secrets in failure output are redacted before they go into commit messages.
 - Run directly on the default branch, it asks before the first commit.
 
+When a test isn't practical, it falls back to another check that fails before the fix and passes after. If the repo has a verification skill, it uses that to drive the app for the check.
+
 **Output:** evidence for each slice: the failing run, then the passing run. It also lists any tests it skipped and why, and any existing tests it changed.
 
 ## untangle
@@ -391,4 +395,5 @@ Drives the `code-health` refactor loop. It decides what to refactor and when to 
 - It never weakens or skips tests, and it never loosens thresholds.
 - It never pushes, opens a PR, or merges. You review the branch.
 - It stops when the code is clean, when only truly needed complexity is left, after two passes with no progress, or after about 25 steps.
+- If the repo has a verification skill, it drives the changed features in the running app at the end, and reverts any step that changed their behavior.
 

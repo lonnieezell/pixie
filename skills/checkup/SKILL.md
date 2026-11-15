@@ -92,6 +92,13 @@ Write each reply as-is to `$RUN/annotations/ID.verdict.json`, where `ID` is the 
 
 **Done when** every ID in `to_verify` has a `.verdict.json`.
 
+**Live reproduction.** Skip this when the project has no verification skill (`.claude/skills/verify-*/`, such as one made by `create-verifier`), or `docs/agents/pixie.json` sets `liveVerify.checkup` to `false`. Otherwise, take each `confirmed` finding with a severity in `fileSeverities` whose failure shows on a surface a user can reach (a route, a screen, a CLI command), and try to reproduce it in the running app. This reaches evidence rung 5. It adds evidence to the issue, but it doesn't replace the prover's test for auto-fix.
+
+- Drive the app yourself, one finding at a time. Never hand it to a background agent: parallel drives would collide on the same instance.
+- Follow the skill's Launch, Doctor, Drive and Cleanup sections, against a local instance only. Never drive production or a shared system. Use its `features/` map to find the journey that reaches the failure.
+- If the failure shows the way the finding says, write `$RUN/annotations/ID.live.json` as `{"live_repro": {"steps": "STEPS", "observed": "OBSERVED"}, "evidence_rung": 5}`, with the steps you took and what the app did. Leave out secrets. If it doesn't show, write nothing: a confirmed finding stays confirmed.
+- Run the skill's Cleanup once, after the last finding, and after any failed drive.
+
 ## 6. Prove and classify (`fix` only)
 
 Skip this step without `fix`.

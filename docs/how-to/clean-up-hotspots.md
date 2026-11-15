@@ -56,12 +56,13 @@ Either way, Claude will:
 3. Write tests first if the code has none.
 4. Refactor in small steps, and commit after each green step. Each commit starts with `untangle:`.
 5. Stop when the code is clean, when only essential complexity is left, after two passes with no progress, or after about 25 steps.
+6. If the repo has a verification skill, drive the features it changed in the running app. If one behaves differently than before, Claude reverts the step that caused it.
 
 It never changes public APIs, routes, database schema, config keys, event names, or output formats.
 
 ## 4. Review the branch
 
-`untangle` never pushes or opens a PR. Its report shows before and after numbers for each file, one line per commit, and anything it left alone. Read the commits. Because each step is its own commit, you can revert any one of them alone.
+`untangle` never pushes or opens a PR. Its report shows before and after numbers for each file, one line per commit, anything it left alone, and the live check result. Read the commits. Because each step is its own commit, you can revert any one of them alone.
 
 When you're happy, push the branch and open a PR as usual.
 

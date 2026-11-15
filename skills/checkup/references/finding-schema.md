@@ -40,7 +40,7 @@ A hunter or triager writes one JSON file:
 | `root_cause` | no | A short phrase naming a shared cause, e.g. `no input validation in form requests`. Findings with the same dimension, category and root cause are merged into one issue with several locations. |
 | `measured` | perf only | `true` only if a number came from running something. Otherwise the finding is inferred and can't be `critical`. |
 
-Hunters and triagers set only the fields above. A triager also adds `external`, the error report it came from. `verdict`, `severity`, `verifier_reason`, `repro` and `tier` come only from the verifier, prover and classifier: the merge step discards them from a hunter's or triager's file, so no agent can confirm its own finding.
+Hunters and triagers set only the fields above. A triager also adds `external`, the error report it came from. `verdict`, `severity`, `verifier_reason`, `repro`, `live_repro` and `tier` come only from the verifier, prover, classifier and the coordinator's live reproduction: the merge step discards them from a hunter's or triager's file, so no agent can confirm its own finding.
 
 Issues show your text exactly as written, in code blocks: markdown, links and HTML don't render there. Write plain sentences.
 
