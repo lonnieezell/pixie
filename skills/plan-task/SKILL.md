@@ -1,7 +1,7 @@
 ---
 name: plan-task
 description: Turn a pasted PM task description (often sparse) into a tight implementation plan for the current codebase, and post it as a new GitHub issue once approved. Use for "plan this task", "plan this ticket", "turn this into an issue", or when the user pastes a PM request and wants it planned.
-allowed-tools: Bash(gh repo view:*), Bash(gh auth status), Bash(gh issue list:*), Bash(gh pr list:*), Bash(gh label list:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*)
+allowed-tools: Bash(gh repo view:*), Bash(gh auth status), Bash(gh issue list:*), Bash(gh issue create:*), Bash(gh pr list:*), Bash(gh label list:*), Bash(gh label create:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*)
 ---
 
 # PM Task → Implementation Plan
