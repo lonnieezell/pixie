@@ -95,6 +95,8 @@ Prefer no new test over a bad test. Use [references/bad-tests.md](references/bad
 3. Browser automation or a recorded manual reproduction for UI behavior.
 4. A log or output assertion, or a snapshot comparison of real output.
 
+For 2 and 3, use the project's verification skill (`.claude/skills/verify-*/`) if it has one, unless `docs/agents/pixie.json` sets `liveVerify.tdd` to `false`. It already knows how to launch, drive and clean up the app.
+
 The fallback still follows red → green: capture it failing before the fix and passing after. Skipping a test is always stated in the report with the reason. Never skip silently.
 
 Keep throwaway repro scripts outside the repo (e.g. in a `mktemp -d` folder). Commit one only if it's worth keeping as a project script, and say so in the report.

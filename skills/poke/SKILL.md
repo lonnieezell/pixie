@@ -32,7 +32,7 @@ The user gives a section: a path, a feature name, or a description ("the file tr
 
 Pick the best available option, in this order, and say which one you're using:
 
-1. **Project verification skill** — if the project has a local skill that drives the app the way a user does (such as one made by `create-verifier`), use it. It already knows how to start, drive, and clean up this app.
+1. **Project verification skill** — unless `docs/agents/pixie.json` sets `liveVerify.poke` to `false`, if the project has a local skill that drives the app the way a user does (such as one made by `create-verifier`), use it. It already knows how to start, drive, and clean up this app. Read its `features/` map and drive every entry point it lists for this section, not just the most convenient one.
 2. **App-specific automation MCP** — if tools are connected that can screenshot, read the DOM, click/type, and read logs inside the real app (e.g. for Tauri: `@hypothesi/tauri-mcp-server` with `tauri-plugin-mcp-bridge`, or `tauri-plugin-mcp`). Real backend, real IPC, real window. Start the app in dev mode first if needed.
 3. **Browser automation against the dev server** — Playwright or a connected browser tool pointed at the frontend dev server (e.g. Vite). For webview apps whose backend calls fail outside the shell, check whether the project mocks IPC (Tauri: `@tauri-apps/api/mocks` `mockIPC`); if not, note that backend-dependent flows can only be reviewed from code. Good for pure UI behavior, fast.
 4. **Computer use** on the user's machine against the built app — slow but real. Use for a small number of high-value flows.

@@ -181,6 +181,17 @@ class RenderTest(unittest.TestCase):
         self.assertIn("? events", body)
         self.assertNotIn("evil.example", rendered(body))
 
+    def test_brief_shows_a_live_reproduction_as_quoted_text(self):
+        f = F.merge([raw()])[0]
+        f.update(severity="high", live_repro={"steps": "open /login [x](https://evil.example)",
+                                              "observed": "logged in as admin <!-- hi -->"})
+        body = F.render_brief(f, "abcdef1234567890", "checkup")
+        self.assertIn("## Reproduced in the running app", body)
+        self.assertIn("open /login", body)
+        self.assertIn("logged in as admin", body)
+        for marker in ("evil.example", "<!--"):
+            self.assertNotIn(marker, rendered(body))
+
     def test_issue_title_is_one_line(self):
         self.assertNotIn("\n", F.issue_title(dict(raw(title="a\n## b"), severity="high")))
 

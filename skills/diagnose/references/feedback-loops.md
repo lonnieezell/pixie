@@ -2,6 +2,8 @@
 
 Build the right loop and the bug is mostly fixed. Work down this ladder, cheapest rung first, and keep going until one fits.
 
+If the project has a verification skill (`.claude/skills/verify-*/`, such as one made by `create-verifier`) and `docs/agents/pixie.json` doesn't set `liveVerify.diagnose` to `false`, use it for rungs 2–4 instead of working out how to start the app yourself. Its Launch and Doctor sections get a local instance ready, its `features/` map says how a user reaches the feature that broke, and its Drive section has the real commands and selectors. Wrap the drive in a script in the scratch folder that asserts the user's symptom. Run the skill's Cleanup when the loop is no longer needed.
+
 ## The ladder
 
 1. **Failing test** at whatever seam reaches the bug: unit, integration, or end-to-end.

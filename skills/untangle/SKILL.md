@@ -70,7 +70,11 @@ Stop when one of these happens:
 - **No progress.** Two consecutive passes that don't improve any number. Report what's left instead of looping.
 - **Safety cap.** About 25 refactor steps in one run. Report what's left and offer to continue.
 
-### 5. Guardrails
+### 5. Live check
+
+Tests can miss behaviour they never covered. If the project has a verification skill (`.claude/skills/verify-*/`, such as one made by `create-verifier`), drive every feature in its `features/` map whose source the run changed (`git diff --name-only <start-commit>...HEAD`). Follow the skill's Launch, Doctor, Drive and Cleanup sections. If a feature behaves differently from the start commit, find the step that caused it, revert that step, and add a characterisation test for what it broke where a seam exists. Run the Cleanup when you're done. Skip this step if there's no verification skill, the scope has no user-facing code, or `docs/agents/pixie.json` sets `liveVerify.untangle` to `false`, and say which in the report.
+
+### 6. Guardrails
 
 - **Behaviour must not change.** No changes to public APIs, routes, DB schema, config keys, event names, or output formats. If cleaning something properly needs one of those, leave it and list it under "needs a decision".
 - If a step breaks tests and two attempts don't fix it, revert that step (`git revert` or reset to the last green commit) and move to the next item.
@@ -87,5 +91,6 @@ Keep it short:
 - **What changed:** one line per commit, or grouped by theme if there are many.
 - **Left as-is:** essential complexity (with the reason), items that need a decision, out-of-scope findings.
 - **Branch name** and the test status at the end.
+- **Live check:** the features driven and what they showed, or why it was skipped.
 
 Offer one next step: usually the next hotspot (auto mode) or the out-of-scope shared code that kept showing up (targeted mode).

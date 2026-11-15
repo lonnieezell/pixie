@@ -127,6 +127,7 @@ Ship the smallest change the evidence justifies. No belt-and-suspenders addition
 - [ ] **Rerun the original, un-minimised Phase 1 loop** on the surface where the user saw the bug. It must be green. "Inconclusive" or a different surface is not a pass, so flag it. Unit tests show branch behavior, not that the bug is gone.
 - [ ] tdd's regression test and relevant test set pass (or the missing seam is documented).
 - [ ] Still no instrumentation: `git grep -n --untracked 'DEBUG-<prefix>'` returns nothing. (It was removed in Phase 5. Check again in case a later probe added some.)
+- [ ] Anything started through the project's verification skill is torn down with that skill's Cleanup.
 - [ ] The scratch folder deleted, or its path given to the user if they want to keep the harnesses.
 - [ ] No bisect in progress (`git status` doesn't mention bisecting).
 - [ ] The confirmed hypothesis and the root cause are stated in the commit or PR message, so the next person debugging here learns from it.
