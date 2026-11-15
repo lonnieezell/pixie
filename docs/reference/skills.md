@@ -219,11 +219,12 @@ Turns a product manager's task description into a short implementation plan. The
 **How to use it:**
 
 1. Run `/pixie:plan-task` and paste the task text, either with the command or in your next message.
-2. If the text has no ticket ID, Claude asks for one once. Type the ID, or pick "No ticket".
-3. Claude checks open issues and PRs for the same work. If an issue already covers the task, it asks whether to go on.
-4. Claude shows you the draft title and body. It asks you each open question, with its own default as the recommended answer. Ask for changes, or approve it.
-5. Claude asks whether to label the issue `ready-for-agent` so `tackle` can pick it up. The default is no.
-6. Claude creates the issue and replies with its URL and the `tackle` command to run next.
+2. Claude replies with a one-line summary of what the task asks for. If it misread the task, say so now.
+3. If the text has no ticket ID, Claude asks for one once. Type the ID, or pick "No ticket".
+4. Claude checks open issues and PRs for the same work. If an issue already covers the task, it asks whether to go on.
+5. Claude shows you the draft title and body. It asks you each open question, with its own default as the recommended answer. Ask for changes, or approve it.
+6. Claude asks whether to label the issue `ready-for-agent` so `tackle` can pick it up. The default is no.
+7. Claude creates the issue and replies with its URL and the `tackle` command to run next.
 
 **Limits:**
 

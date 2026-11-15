@@ -20,9 +20,10 @@ The issue is the spec for `pixie:tackle`. Its classifier reads only the issue te
 ## Step 1: Intake
 
 1. The PM text arrives pasted, either with the command or in the next message. Keep it exactly as written; it goes into the issue unchanged (collapsed).
-2. Look for a ticket reference: a Jira key (e.g. `ABC-123`) or an ID from the in-house tracker. If there isn't one, ask **once** with AskUserQuestion: "What's the ticket ID?", with a "No ticket" option (the user types the ID through "Other"). Don't ask anything else at this point.
-3. Before reading any code, write a one-sentence statement of the user-facing outcome for yourself: who gets what, and why.
-4. Decide the **shape**:
+2. Before anything else, tell the user in one line what the request asks for, in your own words (e.g. "Task: let admins export the audit log as CSV."). This lets the user catch a misread before you spend time on it.
+3. Look for a ticket reference: a Jira key (e.g. `ABC-123`) or an ID from the in-house tracker. If there isn't one, ask **once** with AskUserQuestion: "What's the ticket ID?", with a "No ticket" option (the user types the ID through "Other"). Don't ask anything else at this point.
+4. Before reading any code, write a one-sentence statement of the user-facing outcome for yourself: who gets what, and why.
+5. Decide the **shape**:
    - **Feature:** new or changed behavior. Use the feature template.
    - **Bug, cause known:** the PM or the code names what's wrong. Use the feature template; the fix is the plan.
    - **Bug, cause unknown:** something is broken, wrong or slow and nobody knows why. Use the bug template in Step 4 and **don't plan a fix**. A guessed fix would send `tackle` down the `implement` route and skip diagnosis. If the user wants the cause found before filing, suggest `/pixie:diagnose mode=diagnose-only` instead, and stop.
