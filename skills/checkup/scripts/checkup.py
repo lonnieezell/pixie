@@ -75,7 +75,8 @@ def plan_jobs(shards, baseline, mode, max_shards):
 
 
 def cmd_plan(a, cfg):
-    blobs = S.select(S.git_blobs("."), cfg["exclude"], cfg["includeTests"])
+    tracked = S.git_blobs(".")
+    blobs = S.select(tracked, cfg["exclude"], cfg["includeTests"], S.git_marked(".", tracked))
     lines = S.count_lines(".", blobs)
     shards = S.build(blobs, cfg["shardSize"], S.git_churn("."), lines)
     if a.path:

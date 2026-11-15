@@ -19,7 +19,8 @@ DEFAULTS = {
     "maxFindingsPerHunter": 8,
     "includeTests": False,
     "exclude": [
-        "vendor/", "node_modules/", "target/", "dist/", "build/", ".next/",
+        "vendor/", "_vendor/", "third_party/", "bower_components/", "Pods/", "venv/",
+        "node_modules/", "target/", "dist/", "build/", ".next/",
         "writable/", "storage/", "coverage/", "tests/fixtures/",
     ],
     "autoFix": {"severities": ["critical", "high"], "maxTier": 2},
