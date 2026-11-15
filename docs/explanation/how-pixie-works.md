@@ -60,7 +60,7 @@ When a skill hits a decision that's yours to make, it stops and says so. `tackle
 
 ## Why some skills only run when you type them
 
-Claude Code can start a skill on its own when your request matches it. Pixie turns this off for six skills: `babysit`, `create-verifier`, `huh`, `maintain-verifier`, `poke`, and `tackle`.
+Claude Code can start a skill on its own when your request matches it. Pixie turns this off for eight skills: `babysit`, `catch`, `checkup`, `create-verifier`, `huh`, `maintain-verifier`, `poke`, and `tackle`.
 
 Most of these act outside your conversation. They push branches, change labels, post comments, or start your app. You should never be surprised by that, so they wait for the command.
 
@@ -86,6 +86,25 @@ Issues, PR comments, bot reviews, and CI logs are written by other people and to
 - `tackle` uses only comments from the issue author and repo members as part of the spec. On a public repo, anyone can comment.
 - `babysit` checks every bot comment against the code before acting on it. Bots are often wrong. It replies with a reason either way.
 - `issue-classifier` has only the Read tool. It can't run anything an issue tells it to.
+
+## Audits trust only what survives
+
+`checkup` and `catch` use agents to find problems, and agents get things wrong. A hunter told to find security flaws will find some, real or not. So both skills are built around doubt.
+
+**The finder never gets the last word.** A hunter or triager writes a finding: a claim, a concrete failure scenario, and the code that shows it. A separate verifier then tries to refute it. The verifier starts with a fresh context and doesn't see how the finding was found. It, not the finder, sets the severity, from a fixed rubric. The merge step throws away any verdict or severity a finder writes for itself, so no agent can confirm its own work.
+
+**Evidence has rungs.** Each finding records how strong its evidence is, from "someone said so" up to "reproduced in the running app". An issue needs a walked failure path: from an entry point, through each call, to the wrong result. Auto-fix needs more: a test that runs the real code and fails. A production error alone is never enough, because it shows that *something* broke, not that this code is why.
+
+**A gap is never clean.** When a shard wasn't checked, because a hunter failed or the run hit `maxShards`, it's reported as a gap. Its old findings carry over as stale, and the next run checks it again. A run that skipped half the code doesn't get to report a better score.
+
+**Scores move only with evidence.** Each score comes from a formula over confirmed findings, not from an agent's judgement. Hunters won't find exactly the same things each run, so a new finding in code that didn't change counts as "newly found", not as a regression. It was missed before, not introduced.
+
+**A human decides what's real.** Every issue starts as `needs-triage`. Closing one as not planned is a decision that sticks: that finding is never filed again. Auto-fix only queues a few issues a week, and only ones with a failing test, so the agent queue can't flood.
+
+Two kinds of data get extra care:
+
+- **Security findings on public repos.** An issue about an open security flaw tells everyone where it is. So on public repos, security findings go to private draft advisories by default. The baseline, which is committed, keeps only their counts. A finding's fingerprint is a hash of its file, symbol and category, and anyone with the code could work those back out.
+- **Production error text.** Error messages can contain text written by users or attackers. `catch` fetches only the exception type, a redacted and shortened message, and the stack frames. It never fetches request data, headers or user data. The triager treats that text as data. The verifier sees the code and the finding, but never the raw error text.
 
 ## Small scope, small context
 

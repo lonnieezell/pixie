@@ -27,8 +27,9 @@ Install it first. See [Prerequisites](../README.md#prerequisites) and [Install t
 | Find bugs and UX gaps in the running app | `poke` | [Find bugs and UX gaps](how-to/find-ux-bugs.md) |
 | Let agents drive my app | `create-verifier`, `maintain-verifier` | [Find bugs and UX gaps](how-to/find-ux-bugs.md) |
 | Remove redundant tests | `prune-tests` | [Prune a test suite](how-to/prune-a-test-suite.md) |
-| Audit the code for security, performance and bugs, every week | `checkup` | [Skills reference](reference/skills.md#checkup) |
-| Turn production errors into issues | `catch` | [Skills reference](reference/skills.md#catch) |
+| Audit the code for security, performance and bugs | `checkup` | [Audit a codebase](how-to/audit-a-codebase.md) |
+| Turn production errors into issues | `catch` | [Turn production errors into issues](how-to/turn-production-errors-into-issues.md) |
+| Run `checkup` and `catch` on a schedule | `checkup`, `catch` | [Schedule checkup and catch](how-to/schedule-checkup-and-catch.md) |
 | Get Claude's last reply in plain words | `huh` | [Skills reference](reference/skills.md#huh) |
 | Change or turn off the edit hook | — | [Tune the code-health hook](how-to/tune-the-code-health-hook.md) |
 
@@ -45,6 +46,9 @@ Install it first. See [Prerequisites](../README.md#prerequisites) and [Install t
 - [Clean up hotspots](how-to/clean-up-hotspots.md)
 - [Find bugs and UX gaps in a running app](how-to/find-ux-bugs.md)
 - [Prune a test suite](how-to/prune-a-test-suite.md)
+- [Audit a codebase with checkup](how-to/audit-a-codebase.md)
+- [Turn production errors into issues with catch](how-to/turn-production-errors-into-issues.md)
+- [Schedule checkup and catch](how-to/schedule-checkup-and-catch.md)
 - [Tune the code-health hook](how-to/tune-the-code-health-hook.md)
 
 **Reference**
@@ -52,6 +56,7 @@ Install it first. See [Prerequisites](../README.md#prerequisites) and [Install t
 - [Skills](reference/skills.md)
 - [Labels, branches, and files](reference/labels-and-branches.md)
 - [Agents and the code-health hook](reference/agents-and-hook.md)
+- [checkup and catch settings](reference/checkup-config.md)
 
 **Explanation**
 

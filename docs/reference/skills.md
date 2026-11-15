@@ -75,7 +75,7 @@ Pulls recent production errors from Sentry and Coralogix and turns the real ones
 5. Files confirmed findings as `needs-triage` issues with the event and user counts. A recurring error gets a "still present" comment, at most once a week, instead of a new issue.
 6. With `fix`, it proves eligible findings with a failing local test and queues them for `tackle`, within the weekly PR cap it shares with `checkup`.
 
-**Setup:** set `catch.sentry.org` or `catch.coralogix.domain` in `docs/agents/checkup.json`, and `SENTRY_AUTH_TOKEN` or `CORALOGIX_API_KEY` in the environment. See the skill's `references/config.md`.
+**Setup:** set `catch.sentry.org` or `catch.coralogix.domain` in `docs/agents/checkup.json`, and `SENTRY_AUTH_TOKEN` or `CORALOGIX_API_KEY` in the environment. See [Turn production errors into issues](../how-to/turn-production-errors-into-issues.md) and [the catch settings](checkup-config.md#catch).
 
 **Limits:**
 
@@ -116,7 +116,7 @@ Audits the codebase along three dimensions: security, performance and bugs. It k
 - It never merges, approves or closes anything, and it force-pushes only `checkup/baseline`.
 - It can't start `tackle` itself. Run `/pixie:tackle N` for each promoted issue, or let the scheduled workflow do it.
 
-Settings live in `docs/agents/checkup.json`. See the skill's `references/config.md`. To run it weekly, see `references/automation.md`.
+Settings live in `docs/agents/checkup.json`. See [checkup and catch settings](checkup-config.md). For a walkthrough, see [Audit a codebase](../how-to/audit-a-codebase.md). To run it weekly, see [Schedule checkup and catch](../how-to/schedule-checkup-and-catch.md).
 
 Claude never runs this skill on its own. You must type `/pixie:checkup`.
 
