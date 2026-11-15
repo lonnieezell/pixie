@@ -13,7 +13,7 @@
   "maxShards": 40,
   "maxFindingsPerHunter": 8,
   "includeTests": false,
-  "exclude": ["vendor/", "node_modules/", "target/", "dist/", "build/", ".next/", "writable/", "storage/", "coverage/", "tests/fixtures/"],
+  "exclude": ["vendor/", "_vendor/", "third_party/", "bower_components/", "Pods/", "venv/", "node_modules/", "target/", "dist/", "build/", ".next/", "writable/", "storage/", "coverage/", "tests/fixtures/"],
   "autoFix": { "severities": ["critical", "high"], "maxTier": 2 },
   "catch": {
     "lookback": "24h",
@@ -51,7 +51,7 @@ A finding is auto-fixed only when it's confirmed with high confidence, has a fai
 | `maxShards` | Most shards audited per run. The busiest shards by git churn go first. The rest are listed as gaps, never as clean: their baseline findings carry over as stale, and they keep their old baseline hash so a later run audits them. |
 | `maxFindingsPerHunter` | Cap per hunter, so one noisy shard can't flood the run |
 | `includeTests` | Audit test files too |
-| `exclude` | Path fragments to skip. A fragment matches anywhere in the path. Your list adds to the defaults above. It doesn't replace them. |
+| `exclude` | Path fragments to skip. A fragment matches anywhere in the path. Your list adds to the defaults above. It doesn't replace them. Checkup also always skips files inside a dot-folder (such as `.github/`), minified `.min.js` files, and files your `.gitattributes` marks `linguist-vendored` or `linguist-generated`. |
 
 A full run starts 3 hunters per shard (one per dimension), plus one verifier for each finding not hinted `low`. With `fix`, it adds up to `maxPrsPerWeek` provers and classifiers.
 
@@ -61,7 +61,7 @@ Each dimension scores 0–100:
 
 ```
 penalty = sum of weights of confirmed findings   (critical 25, high 10, medium 3, low 1)
-score   = round(100 / (1 + penalty / (4 × KLOC)))   (KLOC = non-blank source lines / 1000, at least 1)
+score   = round(100 / (1 + penalty / (4 × KLOC)))   (KLOC = lines of code / 1000, at least 1; blank lines, comments and Rust `#[cfg(test)]` modules don't count)
 ```
 
 No findings scores 100. In 10 KLOC, one high finding scores 80 and one critical scores 62. Only verified findings count, so scores move only with confirmed evidence. A finding closed as not planned keeps counting, because the risk is still there, but it's stable from week to week and doesn't cause a regression.

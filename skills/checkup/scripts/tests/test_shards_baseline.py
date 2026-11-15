@@ -16,10 +16,33 @@ class SelectTest(unittest.TestCase):
         blobs = {p: "x" for p in [
             "src/a.php", "README.md", "vendor/lib/x.php", "app/node_modules/y.js",
             "tests/FooTest.php", "src/b.test.ts", "src/Thing.php",
+            "ui/_vendor/react.js", "third_party/z.go", ".github/scripts/ci.js", "app/.claude/hook.py",
+            "public/app.min.js", "gen/api.ts",
         ]}
-        kept = S.select(blobs, C.DEFAULTS["exclude"], include_tests=False)
+        kept = S.select(blobs, C.DEFAULTS["exclude"], include_tests=False, marked={"gen/api.ts"})
         self.assertEqual(sorted(kept), ["src/Thing.php", "src/a.php"])
         self.assertIn("tests/FooTest.php", S.select(blobs, [], include_tests=True))
+
+
+class CodeLinesTest(unittest.TestCase):
+    """KLOC counts code only, so it agrees with other line counters and doesn't double the size."""
+
+    def test_counts_code_not_comments_blanks_or_inline_tests(self):
+        cases = [
+            ("blank lines", ".ts", "a();\n\n  \nb();\n", 2),
+            ("line comments", ".ts", "// note\na(); // trailing\n", 1),
+            ("block comment", ".js", "/**\n * doc\n */\na();\n/* one */\nb();\n", 2),
+            ("code after a block comment closes", ".js", "/* x\n y */ a();\n", 1),
+            ("hash comments", ".py", "# note\nx = 1\n", 1),
+            ("php hash comment but not an attribute", ".php", "# note\n#[Route]\nf();\n", 2),
+            ("sql comment", ".sql", "-- note\nSELECT 1;\n", 1),
+            ("rust attribute is code", ".rs", "#[derive(Debug)]\nstruct A;\n", 2),
+            ("rust inline tests are not counted", ".rs",
+             "fn a() {}\n/// doc\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() {}\n}\n", 1),
+        ]
+        for name, suffix, text, want in cases:
+            with self.subTest(name):
+                self.assertEqual(S.code_lines(text, suffix), want)
 
 
 class BuildTest(unittest.TestCase):

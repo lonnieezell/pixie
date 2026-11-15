@@ -15,7 +15,7 @@
   "maxShards": 40,
   "maxFindingsPerHunter": 8,
   "includeTests": false,
-  "exclude": ["vendor/", "node_modules/", "target/", "dist/", "build/", ".next/", "writable/", "storage/", "coverage/", "tests/fixtures/"],
+  "exclude": ["vendor/", "_vendor/", "third_party/", "bower_components/", "Pods/", "venv/", "node_modules/", "target/", "dist/", "build/", ".next/", "writable/", "storage/", "coverage/", "tests/fixtures/"],
   "autoFix": { "severities": ["critical", "high"], "maxTier": 2 },
   "catch": {
     "lookback": "24h",
@@ -53,7 +53,7 @@ An issue is auto-fixed only when its finding is confirmed with high confidence, 
 | `maxShards` | `40` | Most shards audited per run, busiest by git churn first. The rest are listed as gaps, never as clean. Their baseline findings carry over as stale, and the next run audits them. |
 | `maxFindingsPerHunter` | `8` | Cap per hunter, so one noisy shard can't flood the run |
 | `includeTests` | `false` | Audit test files too |
-| `exclude` | see above | Path fragments to skip. A fragment matches anywhere in the path. Your list is added to the defaults. It doesn't replace them. |
+| `exclude` | see above | Path fragments to skip. A fragment matches anywhere in the path. Your list is added to the defaults. It doesn't replace them. Checkup also always skips files inside a dot-folder (such as `.github/`), minified `.min.js` files, and files your `.gitattributes` marks `linguist-vendored` or `linguist-generated`. |
 
 A full run starts 3 hunters per shard, one per dimension, plus one verifier for each finding not hinted `low`. With `fix`, it adds up to `maxPrsPerWeek` provers and classifiers.
 
@@ -66,7 +66,7 @@ penalty = sum of the weights of confirmed findings   (critical 25, high 10, medi
 score   = round(100 / (1 + penalty / (4 × KLOC)))
 ```
 
-`KLOC` is non-blank source lines divided by 1000, and at least 1.
+`KLOC` is lines of code divided by 1000, and at least 1. Lines of code leave out blank lines, comments, and a Rust file's `#[cfg(test)]` module.
 
 | Example, in 10 KLOC | Score |
 |---|---|
