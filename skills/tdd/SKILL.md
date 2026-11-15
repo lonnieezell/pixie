@@ -17,6 +17,7 @@ Two failures this skill exists to prevent:
 
 - **By the user (`/tdd …`):** treat the arguments as the task: a bug description, a feature description, or an issue reference. An optional `mode=bug` or `mode=feature` overrides mode detection. If the current branch is the repo's default branch, ask before the first commit whether to commit there or on a new branch.
 - **By another skill:** the caller supplies the task and usually the mode. Follow the caller's rules for commits, branches, and asking questions. Never block on the human: where this skill says "confirm", state your assumption in the report and continue. Where it says "stop and report", return the **Report** (below) to the caller, and don't end the turn.
+- **From an issue with a Reproduction test section** (filed by `checkup` or `catch`): that test failed on the code it was filed against. Use it as the seed of the first test. Run it first: it's a trustworthy red only if it still fails for the reason the issue gives.
 - **From `diagnose`:** it also passes a minimised repro, its loop command and the confirmed root cause. The repro is the seed of the first test. The loop command is the fallback check for section 5, and the red to use if no test seam reproduces the bug. The root cause goes in the commit message body.
 
 ## 0. Orient
