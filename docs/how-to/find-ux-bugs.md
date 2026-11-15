@@ -86,7 +86,7 @@ It ends with one of three results:
 
 ## 5. Choose which skills use it
 
-Every skill that can use the verification skill does so by default. To stop one, for example because the app is slow to start and `untangle` runs often, create `docs/agents/pixie.json` and set that skill to `false`:
+Every skill that can use the verification skill does so by default, except `checkup`, which you turn on with `"checkup": true`. To stop one, for example because the app is slow to start and `untangle` runs often, create `docs/agents/pixie.json` and set that skill to `false`:
 
 ```json
 {

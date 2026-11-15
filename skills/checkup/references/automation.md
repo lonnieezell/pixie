@@ -77,8 +77,8 @@ jobs:
           for n in $(jq -r '.promoted[]?' "$RUN/promoted.json" 2>/dev/null); do
             claude -p "/pixie:tackle $n unattended" --dangerously-skip-permissions || echo "tackle $n stopped; see the issue"
           done
-      # A full run re-hunts every shard. Findings newly found in unchanged code don't count as a regression,
-      # but score drops can still be noisy. Raise scoreDropThreshold if this fails without a real change.
+      # Weekly runs audit only changed shards. A full run (`unattended full`) re-hunts every shard: findings newly found
+      # in unchanged code don't count as a regression, but score drops can still be noisy. Raise scoreDropThreshold if this fails without a real change.
       - name: Fail on regression
         run: |
           RUN=$(ls -d ai/checkup/*/ | sort | tail -1)

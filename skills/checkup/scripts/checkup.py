@@ -138,11 +138,14 @@ def cmd_merge(a, cfg):
                 continue
             raw.append(dict(f, shard=key[0]))
     candidates = F.merge(raw) + (plan["carried"] if plan else [])
+    to_verify = [c for c in candidates if F.needs_verify(c)]
     out = {"candidates": candidates, "incomplete": incomplete,
-           "to_verify": [c["id"] for c in candidates if F.needs_verify(c)]}
+           "to_verify": [c["id"] for c in to_verify],
+           "verify_light": [c["id"] for c in to_verify
+                            if c.get("severity_hint", "medium") not in cfg["fileSeverities"]]}
     _write(a.out, out)
     print(json.dumps({"candidates": len(candidates), "to_verify": len(out["to_verify"]),
-                      "incomplete": incomplete}))
+                      "verify_light": len(out["verify_light"]), "incomplete": incomplete}))
 
 
 def _annotations(folder):

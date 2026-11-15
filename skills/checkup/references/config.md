@@ -53,7 +53,7 @@ A finding is auto-fixed only when it's confirmed with high confidence, has a fai
 | `includeTests` | Audit test files too |
 | `exclude` | Path fragments to skip. A fragment matches anywhere in the path. Your list adds to the defaults above. It doesn't replace them. Checkup also always skips files inside a dot-folder (such as `.github/`), minified `.min.js` files, and files your `.gitattributes` marks `linguist-vendored` or `linguist-generated`. |
 
-A full run starts 3 hunters per shard (one per dimension), plus one verifier for each finding not hinted `low`. With `fix`, it adds up to `maxPrsPerWeek` provers and classifiers.
+A full run starts 3 hunters per shard (one per dimension), plus one verifier for each finding not hinted `low`. Verifiers for findings hinted below `fileSeverities` run on Sonnet instead of Opus, since they only move the score unless the verifier raises their severity. An `unattended` run without `full` starts hunters only for shards changed since the baseline. With `fix`, it adds up to `maxPrsPerWeek` provers and classifiers.
 
 ## Scores
 
@@ -70,7 +70,7 @@ No findings scores 100. In 10 KLOC, one high finding scores 80 and one critical 
 
 - The score drop has to beat the threshold.
 - A new confirmed high or critical finding is a regression only when its shard's code changed since the baseline. One found in unchanged code was missed last time, not introduced, so the report lists it as newly found instead.
-- `scores` runs reuse results for unchanged shards. Full runs re-hunt everything, so they're noisier on scores.
+- `scores` and `unattended` runs reuse results for unchanged shards. Full runs re-hunt everything, so they're noisier on scores.
 
 When the baseline withholds security findings, the security dimension regresses when it has more high or critical findings than the baseline, or when its score drop beats the threshold.
 

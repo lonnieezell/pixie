@@ -55,7 +55,7 @@ An issue is auto-fixed only when its finding is confirmed with high confidence, 
 | `includeTests` | `false` | Audit test files too |
 | `exclude` | see above | Path fragments to skip. A fragment matches anywhere in the path. Your list is added to the defaults. It doesn't replace them. Checkup also always skips files inside a dot-folder (such as `.github/`), minified `.min.js` files, and files your `.gitattributes` marks `linguist-vendored` or `linguist-generated`. |
 
-A full run starts 3 hunters per shard, one per dimension, plus one verifier for each finding not hinted `low`. With `fix`, it adds up to `maxPrsPerWeek` provers and classifiers.
+A full run starts 3 hunters per shard, one per dimension, plus one verifier for each finding not hinted `low`. Verifiers for findings hinted below `fileSeverities` run on Sonnet instead of Opus, since they only move the score unless the verifier raises their severity. An `unattended` run without `full` starts hunters only for shards changed since the baseline. With `fix`, it adds up to `maxPrsPerWeek` provers and classifiers.
 
 ## Scores
 
@@ -91,7 +91,7 @@ A run regresses when either of these is true:
 
 When the baseline leaves out security findings, the security dimension also regresses when it has more high or critical findings than the baseline.
 
-A new finding in unchanged code is reported as newly found, not as a regression. `scores` runs reuse results for unchanged shards. Full runs re-hunt everything, so their scores are noisier.
+A new finding in unchanged code is reported as newly found, not as a regression. `scores` and `unattended` runs reuse results for unchanged shards. Full runs re-hunt everything, so their scores are noisier.
 
 ## catch
 
