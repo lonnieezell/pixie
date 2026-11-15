@@ -97,6 +97,7 @@ Audits the codebase along three dimensions: security, performance and bugs. It k
 | a path | Audits only that folder or file. It doesn't touch the baseline. |
 | `unattended` | No questions. It files issues and publishes the baseline. |
 | `fix` | Also proves auto-fix candidates with a failing test and queues them for `tackle` |
+| `permissions` | Audits nothing. It prints the exact allow rules an unattended run needs for the steps that write to GitHub. See [Schedule checkup and catch](../how-to/schedule-checkup-and-catch.md). |
 
 **How it works:**
 

@@ -148,23 +148,29 @@ An Orca automation runs a prompt on a schedule, in a new Orca worktree for each 
 
 Orca starts Claude with your usual permission settings. Any permission prompt stalls an unattended run until someone answers it in Orca. Also, Orca's `--extra-agent-args` accepts only model, effort and `--add-dir`, so you can't pass a permission flag there.
 
-Set permissions in the repo instead. In `.claude/settings.local.json`, which isn't committed:
+Set permissions in the repo instead. First, get the allow rules for your install:
+
+```
+/pixie:checkup permissions
+```
+
+It prints the rules for the steps that write to GitHub, with the exact path to the plugin's script. Put them in `.claude/settings.local.json`, which isn't committed:
 
 ```json
 {
   "permissions": {
     "defaultMode": "acceptEdits",
     "allow": [
-      "Bash(python3 *checkup/scripts/checkup.py file *)",
-      "Bash(python3 *checkup/scripts/checkup.py promote *)",
-      "Bash(python3 *checkup/scripts/checkup.py publish *)"
+      "...the rules /pixie:checkup permissions printed..."
     ]
   }
 }
 ```
 
 - `acceptEdits` lets the run write its files under `ai/` without asking. It also applies to every other Claude session in this repo.
-- The `allow` rules cover the three steps that write to GitHub. The other steps are already allowed by the skills.
+- The `allow` rules cover `file`, `promote` and `publish`, the steps that write to GitHub, for both `checkup` and `catch`. The other steps are already allowed by the skills.
+- The rules use an exact path because a `*` after `python3` also matches options such as `-c`. That would approve any Python code without a prompt, and Claude Code warns about it.
+- The path includes the plugin version. After you update pixie, run `/pixie:checkup permissions` again and replace the rules.
 - `checkup` also runs the audit and lint tools your repo has, such as `npm audit`. Add rules for the ones you want it to run, or it will stop and ask.
 
 Test with a manual run (step 3) and watch for prompts. Add a rule for each one you see.
