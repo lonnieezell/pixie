@@ -9,6 +9,8 @@ New to Pixie? Start with the [tutorial](../tutorial/first-issue-to-pr.md) instea
 | Skill | What it does | Example | Needs | Claude can start it on its own? |
 |---|---|---|---|---|
 | `babysit` | Brings open PRs to a mergeable state, oldest first | `/pixie:babysit` | `gh` | No |
+| `catch` | Turns Sentry and Coralogix errors into `needs-triage` issues | `/pixie:catch` | `gh`, a Sentry or Coralogix token | No |
+| `checkup` | Audits the codebase for security, performance and bugs, scores it, and files issues | `/pixie:checkup` or `/pixie:checkup scores` | `gh` to file issues; `km` optional | No |
 | `code-health` | Measures code health and guides refactoring | `/pixie:code-health did my changes make it worse?` | `km` | Yes |
 | `create-verifier` | Writes a project skill that drives your app like a user | `/pixie:create-verifier` | — | No |
 | `diagnose` | Finds a bug's root cause, proves it, then fixes it | `/pixie:diagnose checkout total is wrong` | — | Only when asked by name |
@@ -57,6 +59,66 @@ Works through a repo's open pull requests one at a time, oldest first. For each 
 - It's safe to run again. It doesn't reply twice to a thread it already answered.
 
 **Output:** a table of each PR's final state. The states are *Ready — awaiting approval*, *Ready*, *Waiting on human*, or *Blocked*.
+
+## catch
+
+Pulls recent production errors from Sentry and Coralogix and turns the real ones into issues `tackle` can fix. It shares `checkup`'s pipeline from merging onwards, so an error in code `checkup` already flagged lands on the same issue.
+
+**Arguments (all optional):** `unattended` and `fix`, as for `checkup`.
+
+**How it works:**
+
+1. Fetches error groups from the configured sources over the `lookback` window, keeping those with at least `minEvents` events. It redacts emails, tokens, IPs and long secrets, and never fetches request data, headers, user data or breadcrumbs.
+2. Maps each stack frame to a repo file. If the lines around the frame closest to the error changed since the error's release (or, without a release commit, if that file was committed after the error was last seen), it marks the report "possibly fixed" and doesn't file it.
+3. Runs one read-only `error-triager` agent per report. It traces the frames into the current code and writes a finding with a walked failure path.
+4. Sends every finding to the same fresh-context verifier `checkup` uses. A triager can't confirm its own finding, because the error text it read is untrusted.
+5. Files confirmed findings as `needs-triage` issues with the event and user counts. A recurring error gets a "still present" comment, at most once a week, instead of a new issue.
+6. With `fix`, it proves eligible findings with a failing local test and queues them for `tackle`, within the weekly PR cap it shares with `checkup`.
+
+**Setup:** set `catch.sentry.org` or `catch.coralogix.domain` in `docs/agents/checkup.json`, and `SENTRY_AUTH_TOKEN` or `CORALOGIX_API_KEY` in the environment. See the skill's `references/config.md`.
+
+**Limits:**
+
+- It never changes anything in Sentry or Coralogix. Resolving the error there is your job after the fix ships.
+- A production error alone is never enough for auto-fix. It needs a reproduction test that fails locally.
+
+Claude never runs this skill on its own. You must type `/pixie:catch`.
+
+## checkup
+
+Audits the codebase along three dimensions: security, performance and bugs. It keeps only the findings that survive an attempt to refute them, scores each dimension, and files confirmed high and critical findings as `needs-triage` issues in a form `tackle` can work from.
+
+**Arguments (all optional):**
+
+| Argument | Effect |
+|---|---|
+| none | Full audit of the whole repo |
+| `scores` | Regression check. It audits only the shards that changed since the baseline, reuses the rest, and reports scores and deltas. It files nothing. |
+| a path | Audits only that folder or file. It doesn't touch the baseline. |
+| `unattended` | No questions. It files issues and publishes the baseline. |
+| `fix` | Also proves auto-fix candidates with a failing test and queues them for `tackle` |
+
+**How it works:**
+
+1. Splits the code into shards of up to 20 files, packing small neighbouring folders together, busiest first, and runs the repo's own audit and lint tools for leads.
+2. Starts three read-only hunter agents per shard, one per dimension. Each finding must name a concrete failure scenario and quote its evidence.
+3. Merges duplicates and findings with a shared root cause. A fresh-context verifier on Opus tries to refute each one, then sets its severity from a fixed rubric.
+4. Scores each dimension with a fixed formula and compares the scores with `docs/agents/checkup-baseline.json`. A new confirmed high or critical finding in code that changed since the baseline, or a drop larger than the threshold, counts as a regression. One found in unchanged code is reported as newly found instead.
+5. Files issues, deduped by fingerprint against every earlier issue. A finding closed as not planned is never filed again. Security findings go to issues, private draft advisories, or the report only, depending on `securityFindings`.
+6. Publishes the new baseline to a rolling `checkup/baseline` PR. When security findings don't go to issues (public repos, by default), the baseline keeps only their counts, never their locations or fingerprints.
+7. With `fix`, it writes a failing reproduction test for each candidate in a throwaway worktree, and moves proven ones to `ready-for-agent`, up to `maxPrsPerWeek`.
+
+**Output:** `ai/checkup/DATE-HHMM/report.md` with scores, confirmed findings, refuted findings and gaps, plus the filed issues and the baseline PR.
+
+**Limits:**
+
+- Shards it couldn't check are listed as gaps, never as clean. Their earlier findings carry over as stale, and the next run audits them again.
+- It never merges, approves or closes anything, and it force-pushes only `checkup/baseline`.
+- It can't start `tackle` itself. Run `/pixie:tackle N` for each promoted issue, or let the scheduled workflow do it.
+
+Settings live in `docs/agents/checkup.json`. See the skill's `references/config.md`. To run it weekly, see `references/automation.md`.
+
+Claude never runs this skill on its own. You must type `/pixie:checkup`.
 
 ## code-health
 
@@ -249,7 +311,7 @@ Sets up the current repo for Pixie. It's optional: without it, every skill uses 
 **How it works:**
 
 1. Checks `gh` sign-in, your access to the GitHub repo, and whether `km` is on the PATH. It tells you how to fix anything missing, but installs nothing.
-2. Asks whether to keep the default labels. If you say no, it asks for a label for each of the four roles. It points out existing labels that look like a match.
+2. Asks whether to keep the default labels. If you say no, it asks for a label for each of the five roles. It points out existing labels that look like a match.
 3. Shows you the draft of `docs/agents/pixie-labels.md`, then writes it.
 4. Creates any chosen label the repo lacks, with a color and a description.
 5. Offers to run `km init` if there's no `.kimun.toml`, and `/pixie:create-verifier` if there's no `verify-*` skill.

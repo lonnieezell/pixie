@@ -9,6 +9,7 @@ Parts of this plugin are adapted from the projects below, used under the MIT Lic
 | `skills/create-verifier` | cursor/plugins pstack |
 | `skills/maintain-verifier` | cursor/plugins pstack |
 | `skills/huh` | cursor/plugins pstack (`bro`) |
+| `skills/checkup`, `skills/catch` and the `audit-*` and `error-triager` agents | Ideas from mattpocock/skills (`skills/engineering/triage`, including `AGENT-BRIEF.md`, and `skills/engineering/code-review`) and cursor/plugins pstack (`interrogate`, `swarm`, `blast-radius`, `principle-fix-root-causes`, `principle-explain-the-number`) |
 
 ---
 

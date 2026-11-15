@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Set up a repo for Pixie. Checks that gh and km are ready, maps Pixie's four workflow labels to the names this repo uses, creates any that are missing, and offers km init and a verification skill. Optional. Every skill works with the defaults without it.
+description: Set up a repo for Pixie. Checks that gh and km are ready, maps Pixie's five workflow labels to the names this repo uses, creates any that are missing, and offers km init and a verification skill. Optional. Every skill works with the defaults without it.
 disable-model-invocation: true
 allowed-tools: Bash(git remote:*), Bash(gh auth status), Bash(gh repo view:*), Bash(gh label list:*), Bash(km --version)
 ---
@@ -60,6 +60,7 @@ On **no**, ask for each role's label. Every role needs its own label. Two roles 
 
    | Role | Color |
    |---|---|
+   | `needs-triage` | `D4C5F9` |
    | `ready-for-agent` | `0E8A16` |
    | `agent-working` | `FBCA04` |
    | `agent-pr` | `1D76DB` |

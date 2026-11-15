@@ -16,7 +16,7 @@ Install Claude Code and sign in. You should be able to start a session with `cla
 
 ### GitHub CLI
 
-The `babysit`, `maintain-verifier`, `plan-task`, `prune-tests`, and `tackle` skills use the GitHub CLI (`gh`) to read and write pull requests and issues. `poke` uses it only if you ask it to file its findings as issues.
+The `babysit`, `catch`, `checkup`, `maintain-verifier`, `plan-task`, `prune-tests`, and `tackle` skills use the GitHub CLI (`gh`) to read and write pull requests and issues. `poke` uses it only if you ask it to file its findings as issues.
 
 1. Install `gh` if you don't have it.
 2. Sign in:
@@ -131,6 +131,8 @@ From here, you can run `/pixie:untangle` to have Claude pick the top hotspot and
 | Skill         | What it does                                                | Example                                            | Needs                             |
 | ------------- | ----------------------------------------------------------- | -------------------------------------------------- | --------------------------------- |
 | `babysit`     | Brings open PRs to a mergeable state, oldest first          | `/pixie:babysit`                                   | `gh`                              |
+| `catch`       | Turns Sentry and Coralogix errors into issues               | `/pixie:catch`                                     | `gh`, a Sentry or Coralogix token |
+| `checkup`     | Audits for security, performance and bugs, then files issues | `/pixie:checkup` or `/pixie:checkup scores`       | `gh` to file issues               |
 | `code-health` | Measures code health and guides refactoring                 | `/pixie:code-health did my changes make it worse?` | `km`                              |
 | `create-verifier` | Writes a project skill that drives your app like a user | `/pixie:create-verifier`                           | —                                 |
 | `diagnose`    | Finds a bug's root cause, proves it, then fixes it          | `/pixie:diagnose checkout total is wrong`          | —                                 |
@@ -147,7 +149,7 @@ From here, you can run `/pixie:untangle` to have Claude pick the top hotspot and
 
 Some skills only run when you type them. See the [Skills reference](docs/reference/skills.md) for full details on each skill: arguments, limits, and output.
 
-Pixie also ships four subagents and a code-health hook that checks every file Claude edits. See [Agents and the code-health hook](docs/reference/agents-and-hook.md).
+Pixie also ships ten subagents and a code-health hook that checks every file Claude edits. See [Agents and the code-health hook](docs/reference/agents-and-hook.md).
 
 ## Documentation
 

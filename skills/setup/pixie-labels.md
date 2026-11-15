@@ -1,9 +1,10 @@
 # Pixie labels
 
-Pixie's skills name four label roles. This file maps each role to the label this repo uses. Edit the "Label in this repo" column to rename one, then create the new label in GitHub or rerun `/pixie:setup`.
+Pixie's skills name five label roles. This file maps each role to the label this repo uses. Edit the "Label in this repo" column to rename one, then create the new label in GitHub or rerun `/pixie:setup`.
 
 | Role | Label in this repo | Meaning |
 |---|---|---|
+| `needs-triage` | `needs-triage` | Filed by an agent. A human decides whether it's real and what happens next. |
 | `ready-for-agent` | `ready-for-agent` | Queued for an agent |
 | `agent-working` | `agent-working` | An agent has claimed it |
 | `agent-pr` | `agent-pr` | A PR is open for it |

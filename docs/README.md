@@ -27,6 +27,8 @@ Install it first. See [Prerequisites](../README.md#prerequisites) and [Install t
 | Find bugs and UX gaps in the running app | `poke` | [Find bugs and UX gaps](how-to/find-ux-bugs.md) |
 | Let agents drive my app | `create-verifier`, `maintain-verifier` | [Find bugs and UX gaps](how-to/find-ux-bugs.md) |
 | Remove redundant tests | `prune-tests` | [Prune a test suite](how-to/prune-a-test-suite.md) |
+| Audit the code for security, performance and bugs, every week | `checkup` | [Skills reference](reference/skills.md#checkup) |
+| Turn production errors into issues | `catch` | [Skills reference](reference/skills.md#catch) |
 | Get Claude's last reply in plain words | `huh` | [Skills reference](reference/skills.md#huh) |
 | Change or turn off the edit hook | — | [Tune the code-health hook](how-to/tune-the-code-health-hook.md) |
 

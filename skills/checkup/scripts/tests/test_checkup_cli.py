@@ -1,0 +1,103 @@
+"""The plan, merge and finalize steps, run through the CLI on a temp run folder."""
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import checkup  # noqa: E402
+
+FINDING = {
+    "dimension": "bug", "category": "null-deref", "title": "Crash on empty cart", "file": "src/Cart.php",
+    "symbol": "Cart::total", "claim": "c", "failure_scenario": "s", "evidence": "e", "evidence_rung": 3,
+    "suggested_fix": "x", "confidence": "high",
+}
+
+
+def shard(sid, h):
+    return {"id": sid, "files": [f"{sid}/x.php"], "hash": h, "churn": 0, "lines": 500}
+
+
+class PlanJobsTest(unittest.TestCase):
+    def setUp(self):
+        self.shards = [shard("a", "same"), shard("b", "new"), shard("c", "new")]
+        self.base = {"shards": {"a": "same", "b": "old"},
+                     "findings": [{"id": "fa", "shard": "a", "dimension": "bug"},
+                                  {"id": "fc", "shard": "c", "dimension": "bug"}]}
+
+    def test_budget_and_carry(self):
+        every = ("security", "performance", "bug")
+        cases = [
+            ("changed mode audits changed shards", "changed", 5, None,
+             {(s, d) for s in "bc" for d in every}, {"fa": False}, 0),
+            ("over budget is a gap, carried stale", "changed", 1, None,
+             {("b", d) for d in every}, {"fa": False, "fc": True}, 1),
+            ("withheld security is re-audited in unchanged shards", "changed", 5, {"security": {}},
+             {(s, d) for s in "bc" for d in every} | {("a", "security")}, {"fa": False}, 0),
+            ("full mode audits everything", "full", 5, None, {(s, d) for s in "abc" for d in every}, {}, 0),
+        ]
+        for name, mode, budget, withheld, jobs, carried, gaps in cases:
+            with self.subTest(name):
+                base = dict(self.base, withheld=withheld) if withheld else self.base
+                got_jobs, got_carried, unchanged, got_gaps = checkup.plan_jobs(self.shards, base, mode, budget)
+                self.assertEqual(set(got_jobs), jobs)
+                self.assertEqual({f["id"]: f["stale"] for f in got_carried}, carried)
+                self.assertEqual(unchanged, ["a"])
+                self.assertEqual(len(got_gaps), gaps)
+
+
+class MergeFinalizeTest(unittest.TestCase):
+    def run_cli(self, *args):
+        with mock.patch("checkup.C.load", return_value=checkup.C.DEFAULTS), \
+                mock.patch("checkup._sha", return_value="abc123"):
+            checkup.main(list(args))
+
+    def test_failed_hunter_keeps_old_hash_and_findings(self):
+        """Regression: a gap counted as clean, so its baseline findings showed as fixed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            base = {"scores": {"bug": 100}, "shards": {"a": "old"},
+                    "findings": [{"id": "old", "fingerprints": ["old"], "shard": "a", "dimension": "bug",
+                                  "severity": "high", "verdict": "confirmed", "locations": [
+                                      {"file": "a/x.php", "symbol": "f", "line": None}], "title": "t",
+                                  "category": "c", "confidence": "high", "evidence_rung": 3}]}
+            plan = {"sha": "abc", "mode": "full", "path": None, "baseline": base, "kloc": 1.0,
+                    "shards": [shard("a", "new")], "unchanged": [], "carried": [], "gaps": [],
+                    "jobs": [{"shard": "a", "dimension": d, "result": f"a.{d}.json"} for d in ("security", "bug")]}
+            (run / "plan.json").write_text(json.dumps(plan))
+            (run / "hunters").mkdir()
+            (run / "hunters/a.security.json").write_text(json.dumps({"status": "PASS", "findings": []}))
+            self.run_cli("merge", "--plan", str(run / "plan.json"), "--results", str(run / "hunters"),
+                         "--out", str(run / "candidates.json"))
+            with mock.patch("checkup._repo", return_value={"visibility": "PRIVATE"}):
+                self.run_cli("finalize", "--candidates", str(run / "candidates.json"),
+                             "--plan", str(run / "plan.json"), "--out-dir", str(run))
+            findings = json.loads((run / "findings.json").read_text())
+            nxt = json.loads((run / "baseline-next.json").read_text())
+        self.assertEqual(findings["comparison"]["fixed"], [])
+        self.assertTrue(findings["confirmed"][0]["stale"])
+        self.assertEqual(nxt["shards"], {"a": "old"})
+
+    def test_self_confirmed_finding_still_goes_to_the_verifier(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            (run / "triage").mkdir()
+            sneaky = dict(FINDING, verdict="confirmed", severity="critical", tier=1,
+                          repro={"test_path": "t", "command": "c", "test_code": "x", "output": "o"},
+                          external={"tracker": "sentry", "id": "1"})
+            (run / "triage/sentry-1.json").write_text(json.dumps({"status": "ISSUES", "findings": [sneaky]}))
+            self.run_cli("merge", "--results", str(run / "triage"), "--source", "catch",
+                         "--out", str(run / "candidates.json"))
+            out = json.loads((run / "candidates.json").read_text())
+        cand = out["candidates"][0]
+        self.assertEqual(out["to_verify"], [cand["id"]])
+        self.assertFalse({"verdict", "severity", "tier", "repro"} & set(cand))
+        self.assertEqual(cand["externals"], [{"tracker": "sentry", "id": "1"}])
+        self.assertEqual(cand["shard"], "sentry-1")
+
+
+if __name__ == "__main__":
+    unittest.main()

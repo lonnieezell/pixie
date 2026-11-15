@@ -5,7 +5,7 @@ Use `/pixie:setup` when a repo already has its own workflow labels, or when you 
 Setup does four things:
 
 - Checks that `gh` is signed in and `km` is on your PATH.
-- Maps Pixie's four workflow labels to the names your repo uses, and saves the map in `docs/agents/pixie-labels.md`.
+- Maps Pixie's five workflow labels to the names your repo uses, and saves the map in `docs/agents/pixie-labels.md`.
 - Creates any of those labels the repo doesn't have yet.
 - Offers to run `km init` and to make a verification skill, if the repo has neither.
 

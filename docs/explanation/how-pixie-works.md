@@ -11,6 +11,8 @@ flowchart LR
     subgraph Find["Find work"]
         PT[plan-task]
         PK[poke]
+        CK[checkup]
+        CT[catch]
         CH[code-health]
     end
     subgraph Build["Build"]
@@ -25,6 +27,8 @@ flowchart LR
     end
     PT -- issue --> L{{ready-for-agent}}
     PK -- issues --> L
+    CK -- issues --> L
+    CT -- issues --> L
     L --> TK
     TK -- unknown cause --> DG
     TK -- everything else --> TD
@@ -35,7 +39,7 @@ flowchart LR
     UT -- branch --> H
 ```
 
-- **Find work.** `plan-task` turns a request into a plan. `poke` finds bugs in a running app. `code-health` finds code worth cleaning up.
+- **Find work.** `plan-task` turns a request into a plan. `poke` finds bugs in a running app. `code-health` finds code worth cleaning up. `checkup` audits the codebase for security, performance and bugs, and `catch` turns production errors into issues. Both file them as `needs-triage` for a human to sort, or queue a few for an agent when auto-fix is on.
 - **Build.** `tackle` takes one issue to a PR. It hands bugs with an unknown cause to `diagnose`, and everything else to `tdd`. `untangle` refactors on its own branch.
 - **Ship.** `babysit` brings PRs to a mergeable state. You merge.
 
