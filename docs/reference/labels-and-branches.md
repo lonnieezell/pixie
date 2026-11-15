@@ -10,7 +10,7 @@ Each label below is a **role**. By default, a role's label is its name. To use d
 
 | Role | Meaning | Who adds it | Who removes it |
 |---|---|---|---|
-| `needs-triage` | Filed by an agent. A human decides whether it's real. | `checkup` and `catch`, on every issue they file | You, when you triage it. Auto-fix swaps it for `ready-for-agent`. |
+| `needs-triage` | Filed by an agent. A human decides whether it's real. | `checkup` and `catch`, on every issue they file | You, when you triage it. Auto-fix swaps it for `ready-for-agent`. `plan-task`, when it plans from the issue. |
 | `ready-for-agent` | Queued for an agent | You, `checkup` or `catch` auto-fix, or `plan-task`, `poke` or `prune-tests` when filing issues if you say yes | `tackle`, when it claims the issue |
 | `agent-working` | An agent has claimed the issue | `tackle` | `tackle`, when it opens a PR or stops |
 | `agent-pr` | A PR is open for the issue | `tackle` | No one. The issue closes when the PR merges. |
@@ -73,7 +73,7 @@ Pushes and PRs:
 
 | Skill | Posts |
 |---|---|
-| `plan-task` | Creates the issue. Adds `ready-for-agent` only if you say yes. No other labels, assignees, or milestones unless you ask. |
+| `plan-task` | Creates the issue. Adds `ready-for-agent` only if you say yes. No other labels, assignees, or milestones unless you ask. When planning from an existing issue, removes `needs-triage` from that issue. |
 | `tackle` | A claim comment, a tier comment such as `Tier 2 (medium), route implement: ...`, and a comment saying why if it stops |
 | `babysit` | A reply on every review-bot thread it handles: `Fixed in <sha>: ...`, `Not changing: ...`, or a note that it's deferred to maintainers |
 | `poke` | Issues for the findings you pick, one per finding |
