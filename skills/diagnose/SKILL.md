@@ -116,7 +116,8 @@ Invoke the **`tdd`** skill in **bug mode**, passing:
 - the minimised repro as the seed for the regression test,
 - the root cause and the place the fix belongs,
 - the pattern-sweep sites that are in scope,
-- the Phase 1 loop command, which serves as tdd's fallback check when no good test seam exists.
+- the Phase 1 loop command, which serves as tdd's fallback check when no good test seam exists,
+- the caller's test baseline, if it gave one. Phase 5 left the tree as it was, so tdd can use it instead of running its own.
 
 **The correct-seam rule:** a regression test is only worth writing at a seam where it exercises the real bug pattern as it occurs at the call site. If the only seams available are too shallow (a single-caller unit test for a bug that needs a chain of callers), say so. **A missing seam is itself a finding:** the architecture is preventing this bug from being locked down. Record it in the report, and let tdd use the loop command as the before/after evidence instead.
 
