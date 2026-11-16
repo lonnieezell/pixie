@@ -31,7 +31,9 @@ Read `package.json`, `composer.json` and the config files at the root.
 | `.scss` or `.sass` files | SCSS |
 | React Native, Vue, Inertia-Vue, Livewire | Detected but not supported |
 
-Skip the folders `code-health` skips (`vendor`, `node_modules`, `target`, `dist`, `build`, `.next`, `writable`, `storage`), plus `public/build`.
+Check the last row first. `react-native` or `expo`, `vue` or `@inertiajs/vue3`, or `livewire/livewire` makes the app unsupported even though `react` or `laravel/framework` is also there.
+
+Skip the folders `code-health` skips (`vendor`, `node_modules`, `target`, `dist`, `build`, `.next`, `writable`, `storage`), plus `public/build`. That includes `vendor` folders inside the scanned paths, such as Laravel's published `resources/views/vendor`.
 
 ## 2. Choose the scanned paths
 
@@ -45,13 +47,15 @@ List the folders and files the scan reads. Keep them tight: the freshness check 
 
 Check each path exists. Add any other folder that clearly holds UI components or styles. If the repo is a monorepo, ask which app to catalogue.
 
+The inventory must match a commit. If `git status --porcelain -- PATHS` prints anything, say so and ask the user to commit those changes first. Don't stash or discard them.
+
 ## 3. Scan
 
-Fill each section of the schema. Count with `grep`, `sort` and `uniq -c` rather than reading view files one by one: a repo can have hundreds of them. Read a file only to get the detail a count can't give (props, variants, token values).
+Fill each section of the schema. Count with `git grep`, `sort` and `uniq -c` rather than reading view files one by one: a repo can have hundreds of them. `git grep` reads only tracked files. End every pathspec with `':!**/vendor/**'` so published package views stay out. Read a file only to get the detail a count can't give (props, variants, token values).
 
 **Tokens.**
 - Tailwind v3: `theme` and `theme.extend` in `tailwind.config.*`. Tailwind v4: `@theme` blocks in CSS.
-- Bootstrap and SCSS: `grep -rnE '^\s*\$[A-Za-z0-9_-]+\s*:' PATHS` lists every variable with its source. The overrides of Bootstrap's `$primary`, `$spacer`, `$border-radius`, `$font-size-base` and `$theme-colors` matter most.
+- Bootstrap and SCSS: `git grep -nE '^\s*\$[A-Za-z0-9_-]+\s*:' -- PATHS ':!**/vendor/**'` lists every variable with its source. The overrides of Bootstrap's `$primary`, `$spacer`, `$border-radius`, `$font-size-base` and `$theme-colors` matter most.
 - CSS custom properties declared on `:root` (or a theme selector such as `[data-theme]` or `.dark`).
 
 **Components.**
@@ -62,7 +66,8 @@ Fill each section of the schema. Count with `grep`, `sort` and `uniq -c` rather 
 One pass gives the usage counts for partials and layouts alike:
 
 ```bash
-grep -rhoE "@include\('[^']+'|@extends\('[^']+'|<x-[a-z0-9.:-]+|\\\$this->(include|extend)\('[^']+'|view_cell\('[^']+'" PATHS | sort | uniq -c | sort -rn
+git grep -hoE "@(include|includeIf|includeWhen|extends)\(['\"][^'\"]+|<x-[a-z0-9.:-]+|(\\\$this->(include|extend)|view|view_cell)\(['\"][^'\"]+" \
+  -- PATHS ':!**/vendor/**' | tr '"' "'" | sort | uniq -c | sort -rn
 ```
 
 For React, count `import … from '…'` lines the same way.
@@ -75,14 +80,15 @@ git log --since=90.days --name-only --format= -- PATHS | sort -u
 
 The one recent code uses is `preferred`. Catalogue both members of a pair: later skills need to know the legacy one exists so they don't use it.
 
-**Patterns.** Find repeated markup that isn't a component yet. Pull every class list out of the view files, sort the classes inside each list, and count:
+**Patterns.** Find repeated markup that isn't a component yet. This pulls every class list out of the view files, sorts the classes inside each list so order doesn't matter, and prints each list used 3 or more times with its count and every `path:line`:
 
 ```bash
-grep -rhoE 'class(Name)?="[^"]+"' PATHS | sed -E 's/^class(Name)?="//; s/"$//' \
-  | perl -lne 'print join " ", sort split " "' | sort | uniq -c | sort -rn | awk '$1 >= 3'
+git grep -noE 'class(Name)?="[^"]+"' -- PATHS ':!**/vendor/**' | perl -lne '
+  /^(.+?:\d+):class(?:Name)?="(.*)"$/ or next; push @{$h{join " ", sort split " ", $2}}, $1;
+  END { for (sort { @{$h{$b}} <=> @{$h{$a}} } keys %h) { print scalar(@{$h{$_}}), "\t$_\t@{$h{$_}}" if @{$h{$_}} >= 3 } }'
 ```
 
-Then `grep -rnF` only the lists that made the cut, to get the `path:line` occurrences and the file count. Keep those that repeat at least 3 times across at least 2 files. Compare parent-child structure only for these candidates.
+Keep those whose occurrences span at least 2 files. Compare parent-child structure only for these candidates.
 
 **Layout shells.** React: layout components and Next `layout.tsx` files. Blade: `@extends('layouts.…')` targets and `<x-…-layout>` components. CI4: `$this->extend('…')` targets with `renderSection`. The usage counts come from the grep above.
 
@@ -114,40 +120,39 @@ Write `docs/agents/design-system.md` from the schema's template. Create `docs/ag
 
 ## 7. Offers
 
-Make each offer only if `## Setup offers` has no row for it yet, and record the answer there.
+`## Setup offers` has one row per offer, named as in bold below. Handle an offer only if its row is missing, then write its row.
 
-1. **Verifier.** If there's no `.claude/skills/verify-*/`: "Want a verification skill, so design skills can launch, sign in to and drive the app? I can make one with `/pixie:create-verifier`. Recommended, not required." On yes, run that skill.
-2. **Playwright.** "Design skills capture screenshots with Playwright. Want me to install it into Pixie's own cache, `~/.cache/pixie/playwright`? It never touches this repo's `package.json`." Skip the question if the cache already has it. On yes, with Node available:
+1. **Run `/pixie:create-verifier`.** If there's no `.claude/skills/verify-*/`: "Want a verification skill, so design skills can launch, sign in to and drive the app? I can make one with `/pixie:create-verifier`. Recommended, not required." On yes, run that skill. If a verifier exists, record `not offered: verifier exists`.
+2. **Install Playwright into `~/.cache/pixie/playwright`.** If `~/.cache/pixie/playwright/node_modules/playwright` exists, record `not offered: already installed`. Without Node, record `not offered: no Node`. Otherwise ask: "Design skills capture screenshots with Playwright. Want me to install it into Pixie's own cache, `~/.cache/pixie/playwright`? It never touches this repo's `package.json`." On yes:
    ```bash
    npm install --prefix ~/.cache/pixie/playwright --save-exact playwright@1.65.1
    PLAYWRIGHT_BROWSERS_PATH=~/.cache/pixie/playwright/browsers \
      ~/.cache/pixie/playwright/node_modules/.bin/playwright install chromium
    ```
    Keep the version pinned, and record it in the answer. Anything that runs this install must set the same `PLAYWRIGHT_BROWSERS_PATH`.
-3. **Modern Web Guidance.** It's installed if a skill with `modern-web-guidance` in its name is in your available skills list, or `grep -l modern-web-guidance ~/.claude/plugins/installed_plugins.json` finds it.
-   - **Installed**, and the Baseline target didn't come from CLAUDE.md: "Modern Web Guidance reads the Baseline target from CLAUDE.md. Want me to add the line `Baseline target: VALUE` to this project's CLAUDE.md?" Never edit CLAUDE.md without an explicit yes. On yes, append that one line and change nothing else in the file.
-   - **Not installed:** tell the user once that [Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance) is a recommended companion for platform-level HTML, CSS and Web API guidance. Don't install it.
+3. **Modern Web Guidance** (MWG). It's installed if a skill with `modern-web-guidance` in its name is in your available skills list, or `grep -l modern-web-guidance ~/.claude/plugins/installed_plugins.json` finds it. It has two rows, and only the one that applies is written, so installing MWG later still brings up the CLAUDE.md offer:
+   - **Add Baseline target line to CLAUDE.md**, only when MWG is installed. If the Baseline target came from CLAUDE.md, record `not offered: already in CLAUDE.md`. Otherwise ask: "Modern Web Guidance reads the Baseline target from CLAUDE.md. Want me to add the line `Baseline target: VALUE` to this project's CLAUDE.md?" Never edit CLAUDE.md without an explicit yes. On yes, append that one line and change nothing else in the file.
+   - **Mention Modern Web Guidance**, only when MWG isn't installed: tell the user that [Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance) is a recommended companion for platform-level HTML, CSS and Web API guidance. Don't install it. Record `mentioned`.
 
 ## 8. Refresh
 
-1. Read the header's `Source commit` and `Scanned paths`. If the commit isn't reachable (`git cat-file -e SHA^{commit}` fails), say so and redo steps 1 to 6 as a full scan, carrying over the protected sections and `## Setup offers` unchanged.
+1. Read the header's `Source commit` and `Scanned paths`. Apply the commit check from step 2. If the commit isn't reachable (`git cat-file -e SHA^{commit}` fails), say so and redo steps 1 to 6 as a full scan, carrying over the protected sections and `## Setup offers` unchanged.
 2. Run the freshness check:
    ```bash
-   git diff --name-only SHA -- PATHS
-   git ls-files --others --exclude-standard -- PATHS
+   git diff --name-status --no-renames SHA HEAD -- PATHS
    ```
-   The first lists files changed since the scan, committed or not. The second lists new untracked files. To catch a new component or style folder outside the scanned paths, look at the directories in `git diff --name-only --diff-filter=A SHA` and add any that hold UI. If nothing changed, say the inventory is fresh and stop.
+   It lists each file added (`A`), modified (`M`) or deleted (`D`) since the scan. `--no-renames` makes a moved file show as a delete plus an add, so its old entries go. To catch a new component or style folder outside the scanned paths, look at the directories in `git diff --name-only --no-renames --diff-filter=A SHA HEAD` and add any that hold UI. If nothing changed, say the inventory is fresh and go to step 7.
 3. Map each changed file to the entries whose source is that file. Refresh only those entries:
    - a changed file: re-read it and update its entries (tokens, a component's props or variants, a layout's path)
    - a deleted file: remove its entries
    - a new file: add any component, token or layout it defines
    - any changed view file: rerun the pattern count, and update the counts and canonical examples that moved
-4. Copy the inventory to a temp file outside the repo. Edit only the affected rows and lines with the Edit tool, never rewriting the whole file. Update `Source commit` to `HEAD` and `Updated` to today.
+4. Copy `docs/agents/design-system.md` to a temp file outside the repo, as a backup. Then edit `docs/agents/design-system.md` itself, never the backup: only the affected rows and lines, with the Edit tool, never rewriting the whole file. Update `Source commit` to `HEAD` and `Updated` to today.
 5. Check the protected sections didn't move:
    ```bash
-   diff <(awk '/^## Annotations$/,0' TEMP_COPY) <(awk '/^## Annotations$/,0' docs/agents/design-system.md)
+   diff <(awk '/^## Annotations$/,0' BACKUP) <(awk '/^## Annotations$/,0' docs/agents/design-system.md)
    ```
-   Any output means they changed: restore them from the copy. Then delete the copy.
+   Any output means they changed: restore them from the backup. Then delete the backup.
 6. Report what changed: each entry added, updated or removed, with its source file, and any changed file that mapped to no entry.
 
 ## Done

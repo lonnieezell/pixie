@@ -1,6 +1,6 @@
 # Design inventory schema
 
-The shape of `docs/agents/design-system.md`. Every stack uses the same sections in the same order, so a design skill can read any repo's inventory cold. Leave a section in place even when it's empty, and write `None found.` under it.
+The shape of `docs/agents/design-system.md`. Every stack uses the same sections in the same order, so a design skill can read any repo's inventory cold. Leave a section in place even when it's empty, and write `None found.` under it. The protected sections are the exception: leave them empty until a human writes in them.
 
 Rules for the file:
 
@@ -97,7 +97,6 @@ none (the repo has a verifier)
 | Run `/pixie:create-verifier` | not offered: verifier exists | 2026-11-16 |
 | Install Playwright into `~/.cache/pixie/playwright` | yes: installed 1.65.1 | 2026-11-16 |
 | Add Baseline target line to CLAUDE.md | no | 2026-11-16 |
-| Modern Web Guidance | not offered: installed | 2026-11-16 |
 
 ## Annotations
 
@@ -133,7 +132,7 @@ A refresh re-infers a changed component's status only when it has no annotation.
 
 **Rules.** House conventions a new screen must follow, each with its evidence. Don't invent rules the code doesn't show.
 
-**Setup offers.** One row per offer, with the answer and the date. An offer with a row is never asked again. Use `not offered: REASON` when its condition wasn't met.
+**Setup offers.** One row per offer, with the answer and the date. Row names and when each is written are in the skill's step 7. An offer with a row is never asked again.
 
 **Annotations.** Free-form notes for design skills. A line in the form ``- status: `Name` = preferred`` or ``- status: `Name` = legacy`` sets that component's status (see Components).
 

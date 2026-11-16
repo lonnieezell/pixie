@@ -60,7 +60,7 @@ When a skill hits a decision that's yours to make, it stops and says so. `tackle
 
 ## Why some skills only run when you type them
 
-Claude Code can start a skill on its own when your request matches it. Pixie turns this off for eight skills: `babysit`, `catch`, `checkup`, `create-verifier`, `huh`, `maintain-verifier`, `poke`, and `tackle`.
+Claude Code can start a skill on its own when your request matches it. Pixie turns this off for nine skills: `babysit`, `catch`, `checkup`, `create-verifier`, `design-setup`, `huh`, `maintain-verifier`, `poke`, and `tackle`.
 
 Most of these act outside your conversation. They push branches, change labels, post comments, or start your app. You should never be surprised by that, so they wait for the command.
 
