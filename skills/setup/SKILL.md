@@ -78,6 +78,8 @@ If km is installed and there's no `.kimun.toml`, offer once: "Want me to run `km
 
 If step 1 found no `verify-*` skill, offer once: "Want a verification skill, so agents can drive the app the way a user does and prove their changes work? I can make one with `/pixie:create-verifier`." On yes, run that skill. On no, move on.
 
+If the repo has a UI (React components, Blade views or CodeIgniter 4 views) and no `docs/agents/design-system.md`, mention once that `/pixie:design-setup` catalogues its design system, so design work reuses existing components instead of inventing new ones. Don't run it.
+
 ## 7. Done
 
 Tell the user:
