@@ -29,6 +29,31 @@ test("plans one shot per state and viewport, with safe file names", () => {
   );
 });
 
+const MATRIX = {
+  states: Object.fromEntries(
+    ["empty", "single", "typical", "overflow", "error", "loading"].map((s) => [s, `/__preview/order-list?state=${s}`]),
+  ),
+  interactions: [{ name: "menu open", from: "typical", steps: [{ click: "button[aria-label=Menu]" }] }],
+};
+
+test("plans every matrix state at desktop, plus typical and overflow at mobile, each at its own URL", () => {
+  const o = parseOptions(["--url", "http://localhost:5173", "--out", "/tmp/run", "--matrix", JSON.stringify(MATRIX)]);
+  assert.deepEqual(
+    o.shots.map((s) => [s.file, s.url, s.steps.length]),
+    [
+      ["shots/empty-1280.png", "http://localhost:5173/__preview/order-list?state=empty", 0],
+      ["shots/single-1280.png", "http://localhost:5173/__preview/order-list?state=single", 0],
+      ["shots/typical-390.png", "http://localhost:5173/__preview/order-list?state=typical", 0],
+      ["shots/typical-1280.png", "http://localhost:5173/__preview/order-list?state=typical", 0],
+      ["shots/overflow-390.png", "http://localhost:5173/__preview/order-list?state=overflow", 0],
+      ["shots/overflow-1280.png", "http://localhost:5173/__preview/order-list?state=overflow", 0],
+      ["shots/error-1280.png", "http://localhost:5173/__preview/order-list?state=error", 0],
+      ["shots/loading-1280.png", "http://localhost:5173/__preview/order-list?state=loading", 0],
+      ["shots/menu-open-1280.png", "http://localhost:5173/__preview/order-list?state=typical", 1],
+    ],
+  );
+});
+
 test("rejects bad options", () => {
   const cases = [
     [["--out", "/tmp/run"], /--url/],

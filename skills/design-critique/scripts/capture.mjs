@@ -17,6 +17,7 @@ const MAX_HEIGHT = 4000;
 const STEP_TIMEOUT_MS = 10000;
 const LOAD_TIMEOUT_MS = 60000;
 const ACTIONS = ["click", "fill", "press", "hover", "waitFor"];
+const REQUIRED_STATES = ["empty", "single", "typical", "overflow", "error", "loading"];
 const CACHE =process.env.PIXIE_PLAYWRIGHT_DIR || join(homedir(), ".cache", "pixie", "playwright");
 
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -34,6 +35,22 @@ function parseStates(value) {
   return states;
 }
 
+// A preview's state matrix: { "states": { "empty": "/__preview/x?state=empty", ... }, "interactions": [
+// { "name": "menu open", "from": "typical", "steps": [...] }] }. Every state is shot at the widest viewport,
+// and typical and overflow at the others too. An interaction replays its steps on its base state's page.
+function planMatrix(value, base, widths) {
+  const m = JSON.parse(value.trim().startsWith("{") ? value : readFileSync(value, "utf8"));
+  const desktop = Math.max(...widths);
+  const url = (name) => new URL(m.states[name], base).href;
+  const interactions = parseStates(JSON.stringify(m.interactions ?? []));
+  return [
+    ...REQUIRED_STATES.map((name) => ({
+      name, url: url(name), steps: [], widths: ["typical", "overflow"].includes(name) ? widths : [desktop],
+    })),
+    ...interactions.map((i) => ({ name: i.name, url: url(i.from), steps: i.steps ?? [], widths: [desktop] })),
+  ];
+}
+
 export function parseOptions(argv) {
   const o = { viewports: "390,1280", states: '[{"name":"default","steps":[]}]' };
   for (let i = 0; i < argv.length; i += 2) {
@@ -48,11 +65,15 @@ export function parseOptions(argv) {
       throw new Error(`viewport ${w} must be a whole number from 1 to ${MAX_WIDTH}`);
     }
   }
-  o.shots = parseStates(o.states).flatMap((s) =>
-    widths.map((width) => ({
+  const states = o.matrix
+    ? planMatrix(o.matrix, o.url, widths)
+    : parseStates(o.states).map((s) => ({ name: s.name, url: o.url, steps: s.steps ?? [], widths }));
+  o.shots = states.flatMap((s) =>
+    s.widths.map((width) => ({
       file: `shots/${slug(s.name)}-${width}.png`,
       state: s.name,
-      steps: s.steps ?? [],
+      url: s.url,
+      steps: s.steps,
       viewport: { width, height: width <= 480 ? 844 : 800 },
     })),
   );
