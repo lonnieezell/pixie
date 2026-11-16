@@ -1,0 +1,74 @@
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import critique as C  # noqa: E402
+
+INVENTORY = """# Design system
+
+## Tokens
+
+Source files: `tailwind.config.js`, `resources/css/app.css`
+
+### Colours
+
+| Role | Token | Value | Source |
+|---|---|---|---|
+| primary | `brand-600` | `#4f46e5` | `tailwind.config.js:12` |
+
+## Rules
+
+- Colours come from tokens.
+
+## Setup offers
+
+| Offer | Answer | Date |
+|---|---|---|
+
+## Annotations
+
+- status: `Button` = preferred
+
+## Rubric overrides
+
+- drop: `type.line-length` (marketing pages use long lines on purpose)
+- Dense tables are fine on admin screens.
+"""
+
+
+class TokenGateTest(unittest.TestCase):
+    def test_reports_raw_values_with_file_and_line(self):
+        cases = [
+            ('<p class="text-[#333]">', ["text-[#333]"]),
+            ('<div class="p-[13px] mt-4">', ["p-[13px]"]),
+            ('<div class="md:w-[calc(100%-2rem)]">', ["md:w-[calc(100%-2rem)]"]),
+            ("color: #4F46E5;", ["#4F46E5"]),
+            ("border: 1px solid #fff", ["#fff"]),
+            ("background: #11223344;", ["#11223344"]),
+            ('<a href="#add">Add</a>', []),
+            ("&#123; is an entity", []),
+            ('<div class="mt-4 text-sm">', []),
+            ("const first = items[0];", []),
+        ]
+        for line, expected in cases:
+            with self.subTest(line=line):
+                hits = C.token_hits("resources/views/a.blade.php", "x\n" + line + "\n")
+                self.assertEqual([h["match"] for h in hits], expected)
+                for h in hits:
+                    self.assertEqual((h["file"], h["line"]), ("resources/views/a.blade.php", 2))
+
+    def test_skips_the_inventory_token_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "resources/css").mkdir(parents=True)
+            (root / "resources/css/app.css").write_text(":root { --primary: #4f46e5; }\n")
+            (root / "page.tsx").write_text('<p className="text-[#333]" />\n')
+            hits = C.token_gate(root, INVENTORY, ["resources/css/app.css", "page.tsx"])
+            self.assertEqual([(h["file"], h["match"]) for h in hits], [("page.tsx", "text-[#333]")])
+
+
+if __name__ == "__main__":
+    unittest.main()
