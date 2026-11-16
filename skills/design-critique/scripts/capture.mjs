@@ -24,12 +24,10 @@ const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g
 // States come inline as JSON or from a file: [{ "name": "menu open", "steps": [{ "click": "SELECTOR" }] }].
 function parseStates(value) {
   const states = JSON.parse(value.trim().startsWith("[") ? value : readFileSync(value, "utf8"));
-  const seen = new Map();
   for (const s of states) {
-    const name = slug(String(s.name ?? ""));
-    if (!name) throw new Error(`every state needs a name with letters or digits: ${JSON.stringify(s)}`);
-    if (seen.has(name)) throw new Error(`states "${seen.get(name)}" and "${s.name}" would save to the same file`);
-    seen.set(name, s.name);
+    if (typeof s.name !== "string" || !slug(s.name)) {
+      throw new Error(`every state needs a name with letters or digits: ${JSON.stringify(s)}`);
+    }
     const unknown = (s.steps ?? []).map((step) => Object.keys(step)[0]).find((a) => !ACTIONS.includes(a));
     if (unknown) throw new Error(`state "${s.name}": unknown step ${unknown}; use ${ACTIONS.join(", ")}`);
   }
@@ -46,7 +44,9 @@ export function parseOptions(argv) {
   if (!o.out) throw new Error("--out is required");
   const widths = o.viewports.split(",").map(Number);
   for (const w of widths) {
-    if (!(w > 0 && w <= MAX_WIDTH)) throw new Error(`viewport ${w} must be between 1 and ${MAX_WIDTH} wide`);
+    if (!(Number.isInteger(w) && w > 0 && w <= MAX_WIDTH)) {
+      throw new Error(`viewport ${w} must be a whole number from 1 to ${MAX_WIDTH}`);
+    }
   }
   o.shots = parseStates(o.states).flatMap((s) =>
     widths.map((width) => ({
@@ -56,6 +56,12 @@ export function parseOptions(argv) {
       viewport: { width, height: width <= 480 ? 844 : 800 },
     })),
   );
+  const files = new Map();
+  for (const shot of o.shots) {
+    const other = files.get(shot.file);
+    if (other) throw new Error(`"${other.state}" and "${shot.state}" at ${shot.viewport.width} would save to the same file`);
+    files.set(shot.file, shot);
+  }
   return o;
 }
 
@@ -81,7 +87,6 @@ async function captureShot(browser, o, shot, axe) {
   const context = await browser.newContext({
     viewport: shot.viewport,
     deviceScaleFactor: 1,
-    bypassCSP: true, // axe is injected as an inline script, which a strict CSP would block
     ...(o.storageState ? { storageState: o.storageState } : {}),
   });
   context.setDefaultTimeout(STEP_TIMEOUT_MS);
@@ -94,7 +99,9 @@ async function captureShot(browser, o, shot, axe) {
     for (const step of shot.steps) await runStep(page, step);
     const height = Math.min(await page.evaluate(() => document.documentElement.scrollHeight), MAX_HEIGHT);
     await page.screenshot({ path: join(o.out, shot.file), fullPage: true, clip: { x: 0, y: 0, width: shot.viewport.width, height } });
-    await page.addScriptTag({ content: axe });
+    // Evaluated through the browser's debugging protocol, which the page's CSP doesn't apply to. A script tag
+    // would be blocked by a strict CSP, and turning CSP off would change what the screenshots show.
+    await page.evaluate(axe);
     const result = await page.evaluate(() => window.axe.run(document, { resultTypes: ["violations"] }));
     return result.violations.map((v) => ({
       id: v.id, impact: v.impact, help: v.help, helpUrl: v.helpUrl, nodes: v.nodes.map((n) => ({ target: n.target })),
@@ -122,8 +129,10 @@ async function main() {
   try {
     browser = await tools.chromium.launch();
   } catch (e) {
+    // Only a missing browser is "cache not ready" (3). Anything else, such as missing system libraries, isn't
+    // fixed by reinstalling.
     console.error(`Chromium won't start from ${CACHE}/browsers: ${e.message.split("\n")[0]}`);
-    process.exit(3);
+    process.exit(/Executable doesn't exist/.test(e.message) ? 3 : 1);
   }
   const manifest = { url: o.url, capturedAt: new Date().toISOString(), shots: [], errors: [] };
   const axe = [];

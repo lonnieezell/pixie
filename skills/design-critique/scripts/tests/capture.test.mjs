@@ -38,6 +38,9 @@ test("rejects bad options", () => {
     [["--url", "http://x/", "--out", "/tmp/run", "--states", '[{"name":"Menu open"},{"name":"menu-open"}]'], /same file/],
     [["--url", "http://x/", "--out", "/tmp/run", "--states", '[{"name":"!!!"}]'], /name/],
     [["--url", "http://x/", "--out", "/tmp/run", "--states", '[{"steps":[]}]'], /name/],
+    [["--url", "http://x/", "--out", "/tmp/run", "--states", '[{"name":1}]'], /name/],
+    [["--url", "http://x/", "--out", "/tmp/run", "--viewports", "390,390"], /same file/],
+    [["--url", "http://x/", "--out", "/tmp/run", "--viewports", "390.5"], /whole number/],
   ];
   for (const [argv, message] of cases) {
     assert.throws(() => parseOptions(argv), message);

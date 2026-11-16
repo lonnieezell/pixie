@@ -5,15 +5,15 @@ import json
 import os
 import re
 import shutil
-import sys
 from pathlib import Path
 
 # A Tailwind arbitrary value: text-[#333], -mt-[3px]. Not an arbitrary variant such as data-[state=open]:,
 # which is followed by `:`.
 ARBITRARY = re.compile(r"(?<![\w\[-])-?[a-z][a-z0-9-]*-\[[^\]\s]+\](?!:)")
 # Colours live in property values (`color: #333`, `{ text: '#333' }`), so hex is only looked for after a `:`,
-# up to the end of the declaration. Text (`<td>#1001</td>`), selectors and `href="#id"` never match.
-# `[#333]` is left to ARBITRARY, and `/#abc` is a URL fragment.
+# up to the end of the declaration. That skips plain text (`<td>#1001</td>`), selectors like `#fab {` and
+# `href="#id"`, but not hex-like text after another colon (`Fixes: #123`, `:not(#abc)`, `href: "#add"`):
+# the skill has the coordinator drop those. `[#333]` is left to ARBITRARY, and `/#abc` is a URL fragment.
 VALUE = re.compile(r":([^;{}<>\n]*)")
 HEX = re.compile(r"(?<![\w#&/\[])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w-])")
 
@@ -33,11 +33,15 @@ def token_hits(path, text):
     hits = []
     for number, line in enumerate(text.splitlines(), 1):
         for m in ARBITRARY.finditer(line):
-            hits.append({"file": path, "line": number, "match": m.group(0), "kind": "arbitrary value"})
+            hits.append(hit(path, number, m.start() + 1, m.group(0), "arbitrary value"))
         for value in VALUE.finditer(line):
             for m in HEX.finditer(value.group(1)):
-                hits.append({"file": path, "line": number, "match": m.group(0), "kind": "raw hex"})
+                hits.append(hit(path, number, value.start(1) + m.start() + 1, m.group(0), "raw hex"))
     return hits
+
+
+def hit(path, line, column, match, kind):
+    return {"file": path, "line": line, "column": column, "match": match, "kind": kind}
 
 
 RUBRIC_ROW = re.compile(r"^\|\s*`([^`]+)`\s*\|")
@@ -87,16 +91,16 @@ def rubric_ids(rubric):
 
 def rejection(f, ids, shots):
     for field in REQUIRED:
-        if f.get(field) in (None, ""):
+        value = f.get(field)
+        if value in (None, ""):
             return f"missing {field}"
-    for field in REQUIRED:
-        if field != "viewport" and not isinstance(f[field], str):
+        if field == "viewport" and (not isinstance(value, int) or isinstance(value, bool)):
+            return "viewport must be a number"
+        if field != "viewport" and not isinstance(value, str):
             return f"{field} must be text"
-    if not isinstance(f["viewport"], int) or isinstance(f["viewport"], bool):
-        return "viewport must be a number"
     if f["severity"] not in SEVERITIES:
         return "bad severity"
-    if len(str(f["observed"]).split()) < MIN_OBSERVED_WORDS:
+    if len(f["observed"].split()) < MIN_OBSERVED_WORDS:
         return "observed is too vague"
     if f["rubric"] not in ids:
         return "unknown rubric item"
@@ -147,15 +151,16 @@ def axe_findings(report):
 
 
 def token_gate(root, inventory, files):
+    """Raw values in the files, and the paths that couldn't be read (so a typo can't pass as clean)."""
     skip = {os.path.normpath(p) for p in token_files(inventory)}
-    hits = []
+    hits, skipped = [], []
     for rel in map(os.path.normpath, files):
         path = Path(root) / rel
         if not path.is_file():
-            print(f"skipped {rel}: not a file", file=sys.stderr)
+            skipped.append(rel)
         elif rel not in skip:
             hits += token_hits(rel, path.read_text(errors="replace"))
-    return hits
+    return hits, skipped
 
 
 def read(path):
@@ -183,9 +188,10 @@ def main(argv=None):
 
     if a.cmd == "gates":
         axe = axe_findings(json.loads(read(run / "axe.json") or "[]"))
-        tokens = token_gate(a.root, inventory, a.files)
-        (run / "gates.json").write_text(json.dumps({"axe": axe, "tokens": tokens}, indent=2))
-        print(f"axe violations: {len(axe)}, raw values: {len(tokens)} -> {run / 'gates.json'}")
+        tokens, skipped = token_gate(a.root, inventory, a.files)
+        (run / "gates.json").write_text(json.dumps({"axe": axe, "tokens": tokens, "skipped": skipped}, indent=2))
+        print(f"axe violations: {len(axe)}, raw values: {len(tokens)}, unreadable files: {skipped or 'none'}"
+              f" -> {run / 'gates.json'}")
     elif a.cmd == "brief":
         print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours))
     else:

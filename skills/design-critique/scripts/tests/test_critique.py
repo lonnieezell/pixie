@@ -71,14 +71,19 @@ class TokenGateTest(unittest.TestCase):
                 for h in hits:
                     self.assertEqual((h["file"], h["line"]), ("resources/views/a.blade.php", 2))
 
+    def test_tells_repeated_values_on_one_line_apart_by_column(self):
+        hits = C.token_hits("a.tsx", '<p className="w-[10px] md:w-[10px]" />')
+        self.assertEqual([(h["match"], h["column"]) for h in hits], [("w-[10px]", 15), ("w-[10px]", 27)])
+
     def test_skips_the_inventory_token_files(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             (root / "resources/css").mkdir(parents=True)
             (root / "resources/css/app.css").write_text(":root { --primary: #4f46e5; }\n")
             (root / "page.tsx").write_text('<p className="text-[#333]" />\n')
-            hits = C.token_gate(root, INVENTORY, ["./resources/css/app.css", "page.tsx", "gone.tsx", "resources"])
+            hits, skipped = C.token_gate(root, INVENTORY, ["./resources/css/app.css", "page.tsx", "gone.tsx", "resources"])
             self.assertEqual([(h["file"], h["match"]) for h in hits], [("page.tsx", "text-[#333]")])
+            self.assertEqual(skipped, ["gone.tsx", "resources"])
 
 
 RUBRIC = """# Rubric
@@ -221,6 +226,7 @@ class CliTest(unittest.TestCase):
             gates = json.loads((run / "gates.json").read_text())
             self.assertEqual([g["rule"] for g in gates["axe"]], ["region"])
             self.assertEqual([g["match"] for g in gates["tokens"]], ["text-[#333]"])
+            self.assertEqual(gates["skipped"], [])
             self.assertTrue((run / "critic" / "rubric.md").exists())
             review = json.loads((run / "findings.json").read_text())
             self.assertEqual([len(review[k]) for k in ("accepted", "rejected", "suppressed")], [1, 0, 1])
