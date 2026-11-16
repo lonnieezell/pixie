@@ -351,7 +351,7 @@ Sets up the current repo for Pixie. It's optional: without it, every skill uses 
 2. Asks whether to keep the default labels. If you say no, it asks for a label for each of the five roles. It points out existing labels that look like a match.
 3. Shows you the draft of `docs/agents/pixie-labels.md`, then writes it.
 4. Creates any chosen label the repo lacks, with a color and a description.
-5. Offers to run `km init` if there's no `.kimun.toml`, and `/pixie:create-verifier` if there's no `verify-*` skill. If the repo has a UI, it mentions `/pixie:design-setup`.
+5. Offers to run `km init` if there's no `.kimun.toml`, and `/pixie:create-verifier` if there's no `verify-*` skill. If the repo has a UI and no design inventory, it mentions `/pixie:design-setup`.
 
 **Output:** `docs/agents/pixie-labels.md`. Commit it. `tackle`, `plan-task`, `poke` and `prune-tests` read it. When it's missing, they use the default labels.
 

@@ -29,9 +29,9 @@ Read `package.json`, `composer.json` and the config files at the root.
 | `tailwindcss` (v3: `tailwind.config.*`; v4: `@import "tailwindcss"` and `@theme` in CSS) | Tailwind |
 | `bootstrap` in `package.json`, a CDN link in a layout, or a Bootstrap SCSS import | Bootstrap |
 | `.scss` or `.sass` files | SCSS |
-| React Native, Vue, Inertia-Vue, Livewire | Detected but not supported |
+| `react-native` or `expo`; `.vue` files under the source folders; Livewire components | Detected but not supported |
 
-Check the last row first. `react-native` or `expo`, `vue` or `@inertiajs/vue3`, or `livewire/livewire` makes the app unsupported even though `react` or `laravel/framework` is also there.
+Judge by the views the app actually has, not by a leftover dependency. A React Native app is unsupported even though `react` is there. A Laravel app whose screens are `.vue` files is Inertia-Vue, not Blade. A Blade app with a few Livewire components is still Blade: catalogue it, and list the Livewire components under "Detected but not supported". Unsupported parts are still catalogued; later design skills just can't preview them.
 
 Skip the folders `code-health` skips (`vendor`, `node_modules`, `target`, `dist`, `build`, `.next`, `writable`, `storage`), plus `public/build`. That includes `vendor` folders inside the scanned paths, such as Laravel's published `resources/views/vendor`.
 
@@ -47,7 +47,7 @@ List the folders and files the scan reads. Keep them tight: the freshness check 
 
 Check each path exists. Add any other folder that clearly holds UI components or styles. If the repo is a monorepo, ask which app to catalogue.
 
-The inventory must match a commit. If `git status --porcelain -- PATHS` prints anything, say so and ask the user to commit those changes first. Don't stash or discard them.
+The inventory must match a commit. If `git status --porcelain --untracked-files=no -- PATHS` prints anything, say so and ask the user to commit those changes first. Don't stash or discard them.
 
 ## 3. Scan
 
@@ -66,11 +66,11 @@ Fill each section of the schema. Count with `git grep`, `sort` and `uniq -c` rat
 One pass gives the usage counts for partials and layouts alike:
 
 ```bash
-git grep -hoE "@(include|includeIf|includeWhen|extends)\(['\"][^'\"]+|<x-[a-z0-9.:-]+|(\\\$this->(include|extend)|view|view_cell)\(['\"][^'\"]+" \
+git grep -hoE "@(include|includeIf|extends)\(['\"][^'\"]+|<x-[a-z0-9.:-]+|(\\\$this->(include|extend)|view|view_cell)\(['\"][^'\"]+" \
   -- PATHS ':!**/vendor/**' | tr '"' "'" | sort | uniq -c | sort -rn
 ```
 
-For React, count `import … from '…'` lines the same way.
+For React, count `import … from '…'` lines the same way. `@includeWhen` and `@includeUnless` take a condition first, so grep those separately when the repo uses them.
 
 **Status.** Apply the precedence in the schema's Components notes. To infer it, look for two components that do the same job (`Button` and `PrimaryButton`, `x-alert` and `partials/alert`, a shadcn `ui/` folder next to older components). Signs of legacy: a `legacy`, `old`, `deprecated` or `v1` path or name, a `@deprecated` comment, or no use in recently changed files. Get those files once, then grep them for every candidate name in one pass:
 
@@ -116,14 +116,14 @@ Show a short summary: the stack, the scanned paths, counts per section, and the 
 
 ## 6. Write the inventory
 
-Write `docs/agents/design-system.md` from the schema's template. Create `docs/agents/` if it's missing. Put `git rev-parse HEAD` in `Source commit`. Start `## Annotations` with any `status:` lines from step 5, and leave `## Rubric overrides` empty.
+Write `docs/agents/design-system.md` from the schema's template. Create `docs/agents/` if it's missing. Put `git rev-parse HEAD` in `Source commit`. Start `## Annotations` with any `status:` lines from step 5, and leave `## Rubric overrides` empty. Write `## Setup offers` as the table header only; step 7 adds the rows.
 
 ## 7. Offers
 
-`## Setup offers` has one row per offer, named as in bold below. Handle an offer only if its row is missing, then write its row.
+`## Setup offers` records the user's answers, one row per offer, named as in bold below. The file is shared, so record only answers, never this machine's state. When an offer's condition doesn't hold (a verifier exists, Playwright is already installed, no Node), skip it without writing a row, so it comes up again once things change. Ask an offer only if its condition holds and its row is missing.
 
-1. **Run `/pixie:create-verifier`.** If there's no `.claude/skills/verify-*/`: "Want a verification skill, so design skills can launch, sign in to and drive the app? I can make one with `/pixie:create-verifier`. Recommended, not required." On yes, run that skill. If a verifier exists, record `not offered: verifier exists`.
-2. **Install Playwright into `~/.cache/pixie/playwright`.** If `~/.cache/pixie/playwright/node_modules/playwright` exists, record `not offered: already installed`. Without Node, record `not offered: no Node`. Otherwise ask: "Design skills capture screenshots with Playwright. Want me to install it into Pixie's own cache, `~/.cache/pixie/playwright`? It never touches this repo's `package.json`." On yes:
+1. **Run `/pixie:create-verifier`.** If there's no `.claude/skills/verify-*/`: "Want a verification skill, so design skills can launch, sign in to and drive the app? I can make one with `/pixie:create-verifier`. Recommended, not required." On yes, run that skill.
+2. **Install Playwright into `~/.cache/pixie/playwright`.** It's installed when `~/.cache/pixie/playwright/node_modules/playwright/package.json` says version `1.65.1` and `~/.cache/pixie/playwright/browsers` has a `chromium-*` folder. Needs Node. A `yes` row from a teammate doesn't count: if it isn't installed on this machine, ask again unless the row says `no`. Ask: "Design skills capture screenshots with Playwright. Want me to install it into Pixie's own cache, `~/.cache/pixie/playwright`? It never touches this repo's `package.json`." On yes:
    ```bash
    npm install --prefix ~/.cache/pixie/playwright --save-exact playwright@1.65.1
    PLAYWRIGHT_BROWSERS_PATH=~/.cache/pixie/playwright/browsers \
@@ -131,7 +131,7 @@ Write `docs/agents/design-system.md` from the schema's template. Create `docs/ag
    ```
    Keep the version pinned, and record it in the answer. Anything that runs this install must set the same `PLAYWRIGHT_BROWSERS_PATH`.
 3. **Modern Web Guidance** (MWG). It's installed if a skill with `modern-web-guidance` in its name is in your available skills list, or `grep -l modern-web-guidance ~/.claude/plugins/installed_plugins.json` finds it. It has two rows, and only the one that applies is written, so installing MWG later still brings up the CLAUDE.md offer:
-   - **Add Baseline target line to CLAUDE.md**, only when MWG is installed. If the Baseline target came from CLAUDE.md, record `not offered: already in CLAUDE.md`. Otherwise ask: "Modern Web Guidance reads the Baseline target from CLAUDE.md. Want me to add the line `Baseline target: VALUE` to this project's CLAUDE.md?" Never edit CLAUDE.md without an explicit yes. On yes, append that one line and change nothing else in the file.
+   - **Add Baseline target line to CLAUDE.md**, only when MWG is installed and the Baseline target didn't come from CLAUDE.md. Ask: "Modern Web Guidance reads the Baseline target from CLAUDE.md. Want me to add the line `Baseline target: VALUE` to this project's CLAUDE.md?" Never edit CLAUDE.md without an explicit yes. On yes, append that one line and change nothing else in the file.
    - **Mention Modern Web Guidance**, only when MWG isn't installed: tell the user that [Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance) is a recommended companion for platform-level HTML, CSS and Web API guidance. Don't install it. Record `mentioned`.
 
 ## 8. Refresh
@@ -160,4 +160,4 @@ Write `docs/agents/design-system.md` from the schema's template. Create `docs/ag
 Tell the user:
 - the file written or refreshed, and what changed (on a refresh)
 - any token file or CLAUDE.md line written, and the Playwright install, if any
-- to commit `docs/agents/design-system.md`, and to set component status and critique rules in `## Annotations` and `## Rubric overrides`. Refreshes never overwrite those two sections.
+- to commit `docs/agents/design-system.md`, together with any bootstrapped token file (the next refresh needs the scanned paths committed), and to set component status and critique rules in `## Annotations` and `## Rubric overrides`. Refreshes never overwrite those two sections.

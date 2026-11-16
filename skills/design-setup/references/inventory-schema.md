@@ -1,6 +1,6 @@
 # Design inventory schema
 
-The shape of `docs/agents/design-system.md`. Every stack uses the same sections in the same order, so a design skill can read any repo's inventory cold. Leave a section in place even when it's empty, and write `None found.` under it. The protected sections are the exception: leave them empty until a human writes in them.
+The shape of `docs/agents/design-system.md`. Every stack uses the same sections in the same order, so a design skill can read any repo's inventory cold. Leave a section in place even when it's empty, and write `None found.` under it. The exceptions: `## Setup offers` keeps its table header, and the protected sections hold only what a human wrote or answered, so they can be empty.
 
 Rules for the file:
 
@@ -94,7 +94,6 @@ none (the repo has a verifier)
 
 | Offer | Answer | Date |
 |---|---|---|
-| Run `/pixie:create-verifier` | not offered: verifier exists | 2026-11-16 |
 | Install Playwright into `~/.cache/pixie/playwright` | yes: installed 1.65.1 | 2026-11-16 |
 | Add Baseline target line to CLAUDE.md | no | 2026-11-16 |
 
