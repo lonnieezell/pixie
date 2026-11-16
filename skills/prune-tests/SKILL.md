@@ -65,7 +65,7 @@ Use this mode when the invoking prompt says "unattended" or no human is availabl
 
 ## Commits
 
-Use the repo's own convention (check `git log`). If it has none, use `test(<area>): <what changed>`. Stage by path: `git add` only the files that commit changed. Never `git add -A`, `git add .` or `git commit -a`.
+Use the repo's own convention (check `git log`). If it has none, use `test(<area>): <what changed>`. Stage by path: `git add` only the files that commit changed. Never `git add -A`, `git add .` or `git commit -a`. For a multi-line message, write it to a temp file outside the repo with the Write tool and commit with `git commit -F FILE`. Never use a heredoc or `-F -`: in some sandboxed shells the commit silently doesn't happen.
 
 ## Phase 1: Baseline (before touching anything)
 

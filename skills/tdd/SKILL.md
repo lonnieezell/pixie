@@ -81,7 +81,7 @@ The list is a plan, not a contract. Add, drop, or reorder items as each slice te
 6. **Tidy on green (optional).** Restructure only code touched in this slice (names, duplication you just introduced, extracting a helper), then rerun the relevant set. Anything larger becomes a follow-up note in the report, not part of this loop.
 7. **Commit** (unless the caller owns commits): the test and the fix together in one commit, made only once the tests pass. Never commit a failing test on its own.
    - **Stage by path.** `git add` only the files this slice changed. Never `git add -A`, `git add .` or `git commit -a`, which would sweep in someone's unrelated work.
-   - **Message.** Use the caller's commit format. If there's none, follow the repo's own convention (check `git log`).
+   - **Message.** Use the caller's commit format. If there's none, follow the repo's own convention (check `git log`). Write the message to a temp file outside the repo with the Write tool, commit with `git commit -F FILE`, then delete the file. Never pass the message through a heredoc or `-F -`: in some sandboxed shells it silently creates no commit.
    - **Body.** Paste the red output from step 3, trimmed to the assertion and failure lines, so the history still shows it failed first. Replace any secret (tokens, passwords, connection strings, keys) with `<REDACTED>`. Commit history is permanent and often public. If a caller gave a root cause, state it too.
 
 Then take the next item on the list.
