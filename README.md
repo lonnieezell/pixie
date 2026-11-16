@@ -135,6 +135,7 @@ From here, you can run `/pixie:untangle` to have Claude pick the top hotspot and
 | `checkup`     | Audits for security, performance and bugs, then files issues | `/pixie:checkup` or `/pixie:checkup scores`       | `gh` to file issues               |
 | `code-health` | Measures code health and guides refactoring                 | `/pixie:code-health did my changes make it worse?` | `km`                              |
 | `create-verifier` | Writes a project skill that drives your app like a user | `/pixie:create-verifier`                           | —                                 |
+| `design-setup` | Catalogues the repo's design system for design work        | `/pixie:design-setup`                              | —                                 |
 | `diagnose`    | Finds a bug's root cause, proves it, then fixes it          | `/pixie:diagnose checkout total is wrong`          | —                                 |
 | `how`         | Explains how part of the codebase works                     | `/pixie:how does authentication work`              | —                                 |
 | `huh`         | Restates Claude's last reply in plain language              | `/pixie:huh`                                       | —                                 |
