@@ -12,11 +12,11 @@ A subagent is a separate Claude instance that does one job and returns a short a
 | `ci-log-triage` | Haiku | Bash, Read, Grep | `babysit` | Reads a failed CI run's logs and returns only the failing tests, errors, and files. |
 | `review-thread-verifier` | Sonnet | Read, Grep, Glob | `babysit` | Checks one review-bot comment against the code. Returns `valid`, `invalid`, or `needs-human` with a reason. `babysit` runs one per thread when a PR has more than five. |
 | `coverage-analyzer` | Sonnet | Bash, Read, Write, Glob, Grep | `prune-tests` | Writes and runs a script over per-test coverage and mutation files. Returns the subsumed tests, groups of tests that cover exactly the same lines, the only tests covering a line, and the only tests that catch a mutant. Reads PHP, JS/TS and Python coverage formats, and one lcov file per test for Rust. |
-| `audit-security` | Sonnet | Read, Grep, Glob, Write | `checkup` | Hunts one shard for security flaws an attacker can reach. Writes only its result file. |
-| `audit-performance` | Sonnet | Read, Grep, Glob, Write | `checkup` | Hunts one shard for code that gets slow or uses too much memory as data grows. |
-| `audit-bugs` | Sonnet | Read, Grep, Glob, Write | `checkup` | Hunts one shard for logic errors, races, unhandled errors and data-integrity bugs. |
-| `audit-verifier` | Opus | Read, Grep, Glob | `checkup`, `catch` | Tries to refute one finding against the code without seeing how it was found. Returns `confirmed`, `refuted` or `needs-human`, with a severity. |
-| `audit-prover` | Sonnet | Read, Grep, Glob, Bash, Write, Edit | `checkup`, `catch` | Writes and runs one test that fails on a confirmed finding, in a throwaway worktree. Never edits source code. Only runs with `fix`. |
+| `audit-security` | Sonnet | Read, Grep, Glob, Write | `checkup`, `vet` | Hunts one shard for security flaws an attacker can reach. Writes only its result file. |
+| `audit-performance` | Sonnet | Read, Grep, Glob, Write | `checkup`, `vet` | Hunts one shard for code that gets slow or uses too much memory as data grows. |
+| `audit-bugs` | Sonnet | Read, Grep, Glob, Write | `checkup`, `vet` | Hunts one shard for logic errors, races, unhandled errors and data-integrity bugs. |
+| `audit-verifier` | Opus | Read, Grep, Glob | `checkup`, `catch`, `vet` | Tries to refute one finding against the code without seeing how it was found. Returns `confirmed`, `refuted` or `needs-human`, with a severity. `vet` runs it on Sonnet for medium and low findings. |
+| `audit-prover` | Sonnet | Read, Grep, Glob, Bash, Write, Edit | `checkup`, `catch`, `vet` | Writes and runs one test that fails on a confirmed finding, in a throwaway worktree. Never edits source code. Only runs with `fix`, or in `vet` when you agree to prove a finding. |
 | `error-triager` | Sonnet | Read, Grep, Glob, Write | `catch` | Traces one redacted production error into the current code and writes a finding for the verifier. Treats the error text as untrusted. |
 
 ### `issue-classifier` output
