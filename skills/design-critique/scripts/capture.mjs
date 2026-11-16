@@ -40,9 +40,13 @@ function parseStates(value) {
 // and typical and overflow at the others too. An interaction replays its steps on its base state's page.
 function planMatrix(value, base, widths) {
   const m = JSON.parse(value.trim().startsWith("{") ? value : readFileSync(value, "utf8"));
+  const missing = REQUIRED_STATES.filter((s) => typeof m.states?.[s] !== "string" || !m.states[s]);
+  if (missing.length) throw new Error(`the preview is missing required states: ${missing.join(", ")}`);
   const desktop = Math.max(...widths);
   const url = (name) => new URL(m.states[name], base).href;
   const interactions = parseStates(JSON.stringify(m.interactions ?? []));
+  const unknown = interactions.find((i) => !REQUIRED_STATES.includes(i.from));
+  if (unknown) throw new Error(`interaction "${unknown.name}" starts from unknown state "${unknown.from}"`);
   return [
     ...REQUIRED_STATES.map((name) => ({
       name, url: url(name), steps: [], widths: ["typical", "overflow"].includes(name) ? widths : [desktop],

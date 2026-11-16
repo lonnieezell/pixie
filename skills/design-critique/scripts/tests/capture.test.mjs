@@ -35,6 +35,7 @@ const MATRIX = {
   ),
   interactions: [{ name: "menu open", from: "typical", steps: [{ click: "button[aria-label=Menu]" }] }],
 };
+const matrixArgs = (m) => ["--url", "http://x/", "--out", "/tmp/run", "--matrix", JSON.stringify(m)];
 
 test("plans every matrix state at desktop, plus typical and overflow at mobile, each at its own URL", () => {
   const o = parseOptions(["--url", "http://localhost:5173", "--out", "/tmp/run", "--matrix", JSON.stringify(MATRIX)]);
@@ -66,6 +67,9 @@ test("rejects bad options", () => {
     [["--url", "http://x/", "--out", "/tmp/run", "--states", '[{"name":1}]'], /name/],
     [["--url", "http://x/", "--out", "/tmp/run", "--viewports", "390,390"], /same file/],
     [["--url", "http://x/", "--out", "/tmp/run", "--viewports", "390.5"], /whole number/],
+    [matrixArgs({ ...MATRIX, states: { ...MATRIX.states, error: undefined, loading: "" } }), /missing.*error, loading/],
+    [matrixArgs({ ...MATRIX, interactions: [{ name: "menu open", from: "busy", steps: [] }] }), /busy/],
+    [matrixArgs({ ...MATRIX, interactions: [{ name: "typical", from: "typical", steps: [] }] }), /same file/],
   ];
   for (const [argv, message] of cases) {
     assert.throws(() => parseOptions(argv), message);
