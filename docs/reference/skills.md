@@ -197,9 +197,9 @@ Gives a ranked, evidence-backed critique of one existing screen, judged from scr
 5. Keeps only findings that cite a rubric item, a screenshot, a state and a width with a concrete observation. It drops vague ones, and suppresses any finding for a rubric item your overrides drop.
 6. Saves a dated report and asks once what to do: fix the top few, file them as issues, or leave them.
 
-**Rubric:** the core rubric ships with the skill (layout, hierarchy, type, colour, consistency, states, interaction, content). If the `frontend-design` or `web-design-guidelines` skills are installed, their checks are added. Your inventory's `## Rubric overrides` win: a ``- drop: `ID` `` line removes an item, and any other line is a house rule the critic follows.
+**Rubric:** the core rubric ships with the skill (layout, hierarchy, type, colour, consistency, states, interaction, content). If the `frontend-design` or `web-design-guidelines` skills are installed, their checks are added. Your inventory's `## Rubric overrides` win: a ``- drop: `ID` `` line suppresses findings for that item, and any other line is a house rule the critic follows.
 
-**Capture tools:** Playwright 1.65.1 and axe-core 4.14.1, in Pixie's own cache at `~/.cache/pixie/playwright`. It asks before installing them, and never touches your repo's `package.json` or lockfile. It checks they're unchanged after capture. With no Node, it uses a connected browser MCP, without the axe gate. With no browser at all, it says visual critique is unavailable and stops.
+**Capture tools:** Playwright and axe-core, in Pixie's own cache at `~/.cache/pixie/playwright`, the same install `design-setup` offers. It asks before installing them, and never touches your repo's `package.json` or lockfile. It checks they're unchanged after capture. With no Node, it uses a connected browser MCP, without the axe gate. With no browser at all, it says visual critique is unavailable and stops.
 
 **Limits:**
 

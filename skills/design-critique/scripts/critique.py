@@ -45,16 +45,11 @@ def dropped(inventory):
     return set(re.findall(r"^- drop:\s*`([^`]+)`", section(inventory, "Rubric overrides"), re.M))
 
 
-def merge_rubric(rubric, extra, drop):
-    def keep(line):
-        m = RUBRIC_ROW.match(line)
-        return not (m and m.group(1) in drop)
-
-    merged = "\n".join(filter(keep, rubric.splitlines())) + "\n"
-    rows = [line for line in (extra or "").splitlines() if RUBRIC_ROW.match(line) and keep(line)]
-    if rows:
-        merged += "\n## Added for this repo\n\n| ID | Check | Typical severity |\n|---|---|---|\n" + "\n".join(rows) + "\n"
-    return merged
+def merge_rubric(rubric, extra):
+    rows = [line for line in (extra or "").splitlines() if RUBRIC_ROW.match(line)]
+    if not rows:
+        return rubric
+    return rubric.rstrip("\n") + "\n\n## Added for this repo\n\n| ID | Check | Typical severity |\n|---|---|---|\n" + "\n".join(rows) + "\n"
 
 
 def brief(run, inventory, rubric, extra, neighbours):
@@ -67,10 +62,10 @@ def brief(run, inventory, rubric, extra, neighbours):
         shutil.copyfile(run / shot["file"], critic / shot["file"])
     if neighbours:
         (critic / "neighbours").mkdir()
-        for png in map(Path, neighbours):
-            shutil.copyfile(png, critic / "neighbours" / png.name)
+        for number, png in enumerate(map(Path, neighbours), 1):
+            shutil.copyfile(png, critic / "neighbours" / f"{number}-{png.name}")
     (critic / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    (critic / "rubric.md").write_text(merge_rubric(rubric, extra, dropped(inventory)))
+    (critic / "rubric.md").write_text(merge_rubric(rubric, extra))
     (critic / "context.md").write_text(
         "# House rules\n" + section(inventory, "Rules") + "\n# Rubric overrides\n" + section(inventory, "Rubric overrides")
     )
@@ -135,7 +130,7 @@ def axe_findings(report):
             found.append({
                 "rule": v["id"], "impact": v.get("impact") or "minor", "help": v["help"],
                 "nodes": len(v["nodes"]), "targets": [" ".join(map(str, n["target"])) for n in v["nodes"]][:5],
-                "screenshot": shot["screenshot"], "state": shot["state"], "viewport": shot["viewport"],
+                "screenshot": shot["file"], "state": shot["state"], "viewport": shot["viewport"],
             })
     return sorted(found, key=lambda f: IMPACTS.index(f["impact"]) if f["impact"] in IMPACTS else len(IMPACTS))
 

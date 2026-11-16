@@ -5,8 +5,8 @@
 //   node capture.mjs --url URL --out DIR [--viewports 390,1280] [--states JSON|FILE] [--storage-state FILE]
 //
 // Exit codes: 0 captured (per-state errors are in the manifest), 1 bad options or the page failed to load,
-// 3 Playwright or axe-core missing from the cache.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+// 3 Playwright or axe-core missing from the cache. PIXIE_PLAYWRIGHT_DIR points at another cache, for testing.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -16,7 +16,7 @@ const MAX_WIDTH = 1280;
 const MAX_HEIGHT = 4000;
 const STEP_TIMEOUT_MS = 10000;
 const ACTIONS = ["click", "fill", "press", "hover", "waitFor"];
-export const CACHE = process.env.PIXIE_PLAYWRIGHT_DIR || join(homedir(), ".cache", "pixie", "playwright");
+const CACHE =process.env.PIXIE_PLAYWRIGHT_DIR || join(homedir(), ".cache", "pixie", "playwright");
 
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -57,7 +57,7 @@ function loadTools() {
   process.env.PLAYWRIGHT_BROWSERS_PATH = join(CACHE, "browsers");
   const require = createRequire(join(CACHE, "noop.js"));
   try {
-    return { chromium: require("playwright").chromium, axePath: require.resolve("axe-core/axe.min.js") };
+    return { chromium: require("playwright").chromium, axe: readFileSync(require.resolve("axe-core/axe.min.js"), "utf8") };
   } catch {
     return null;
   }
@@ -71,7 +71,7 @@ async function runStep(page, step) {
   return page[action](arg);
 }
 
-async function captureShot(browser, o, shot, axePath) {
+async function captureShot(browser, o, shot, axe) {
   const context = await browser.newContext({
     viewport: shot.viewport,
     deviceScaleFactor: 1,
@@ -86,7 +86,7 @@ async function captureShot(browser, o, shot, axePath) {
     for (const step of shot.steps) await runStep(page, step);
     const height = Math.min(await page.evaluate(() => document.documentElement.scrollHeight), MAX_HEIGHT);
     await page.screenshot({ path: join(o.out, shot.file), fullPage: true, clip: { x: 0, y: 0, width: shot.viewport.width, height } });
-    await page.addScriptTag({ path: axePath });
+    await page.addScriptTag({ content: axe });
     const result = await page.evaluate(() => window.axe.run(document, { resultTypes: ["violations"] }));
     return result.violations.map((v) => ({
       id: v.id, impact: v.impact, help: v.help, helpUrl: v.helpUrl, nodes: v.nodes.map((n) => ({ target: n.target })),
@@ -106,7 +106,7 @@ async function main() {
   }
   const tools = loadTools();
   if (!tools) {
-    console.error(`Playwright or axe-core is missing from ${CACHE}. See the skill's Prerequisites to install them.`);
+    console.error(`Playwright or axe-core is missing from ${CACHE}. /pixie:design-setup offers to install them.`);
     process.exit(3);
   }
   mkdirSync(join(o.out, "shots"), { recursive: true });
@@ -117,9 +117,9 @@ async function main() {
     for (const shot of o.shots) {
       const entry = { file: shot.file, state: shot.state, viewport: shot.viewport.width };
       try {
-        const violations = await captureShot(browser, o, shot, tools.axePath);
+        const violations = await captureShot(browser, o, shot, tools.axe);
         manifest.shots.push(entry);
-        axe.push({ screenshot: shot.file, state: shot.state, viewport: shot.viewport.width, violations });
+        axe.push({ ...entry, violations });
       } catch (e) {
         manifest.errors.push({ ...entry, error: e.message.split("\n")[0] });
       }

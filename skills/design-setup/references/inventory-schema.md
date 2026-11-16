@@ -135,4 +135,4 @@ A refresh re-infers a changed component's status only when it has no annotation.
 
 **Annotations.** Free-form notes for design skills. A line in the form ``- status: `Name` = preferred`` or ``- status: `Name` = legacy`` sets that component's status (see Components).
 
-**Rubric overrides.** Changes to the design critique rubric for this repo. A line in the form ``- drop: `RUBRIC-ID` `` (any reason after it) removes that rubric item, and `/design-critique` suppresses any finding that cites it. Any other line is a house rule the critic follows, and it wins over the core rubric.
+**Rubric overrides.** Changes to the design critique rubric for this repo. A line in the form ``- drop: `RUBRIC-ID` `` (any reason after it) makes `/design-critique` suppress any finding that cites that rubric item. Any other line is a house rule the critic follows, and it wins over the core rubric.

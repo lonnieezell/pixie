@@ -2,7 +2,7 @@
 
 The checks the `design-critic` agent applies to screenshots. Every item can be judged from a screenshot alone, with no code. A finding cites one item by its ID. `critique.py` reads the IDs from the first column, so keep each one in backticks.
 
-A repo can change this list in its inventory's `## Rubric overrides`. A ``- drop: `ID` `` line removes an item, and any other line is a house rule the critic follows. Overrides win over this file.
+A repo can change this list in its inventory's `## Rubric overrides`. A ``- drop: `ID` `` line suppresses every finding that cites that item, and any other line is a house rule the critic follows. Overrides win over this file.
 
 ## Severity
 

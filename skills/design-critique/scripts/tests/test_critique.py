@@ -103,25 +103,28 @@ def make_run(root):
     for shot in MANIFEST["shots"]:
         (run / shot["file"]).write_bytes(b"\x89PNG")
     (run / "page.tsx").write_text("export default function Page() {}")
-    neighbour = Path(root) / "list-1280.png"
-    neighbour.write_bytes(b"\x89PNG")
-    return run, neighbour
+    neighbours = []
+    for name in ("list", "detail"):
+        (run / name / "shots").mkdir(parents=True)
+        neighbours.append(run / name / "shots" / "default-1280.png")
+        neighbours[-1].write_bytes(b"\x89PNG")
+    return run, neighbours
 
 
 class BriefTest(unittest.TestCase):
     def test_critic_folder_holds_only_screenshots_rubric_and_context(self):
         with tempfile.TemporaryDirectory() as d:
-            run, neighbour = make_run(d)
-            critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, [neighbour])
+            run, neighbours = make_run(d)
+            critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, neighbours)
             files = sorted(str(p.relative_to(critic)) for p in critic.rglob("*") if p.is_file())
             self.assertEqual(files, [
-                "context.md", "manifest.json", "neighbours/list-1280.png", "rubric.md",
-                "shots/default-1280.png", "shots/default-390.png",
+                "context.md", "manifest.json", "neighbours/1-default-1280.png", "neighbours/2-default-1280.png",
+                "rubric.md", "shots/default-1280.png", "shots/default-390.png",
             ])
             rubric = (critic / "rubric.md").read_text()
             self.assertIn("`type.hierarchy`", rubric)
             self.assertIn("`wdg.focus-visible`", rubric)
-            self.assertNotIn("`type.line-length`", rubric)
+            self.assertIn("`type.line-length`", rubric)  # dropped items are suppressed at review, not hidden
             context = (critic / "context.md").read_text()
             self.assertIn("Colours come from tokens.", context)
             self.assertIn("Dense tables are fine on admin screens.", context)
@@ -142,8 +145,8 @@ def finding(**over):
 class ReviewFindingsTest(unittest.TestCase):
     def review(self, findings):
         with tempfile.TemporaryDirectory() as d:
-            run, neighbour = make_run(d)
-            critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, [neighbour])
+            run, neighbours = make_run(d)
+            critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, neighbours)
             return C.review_findings(critic, INVENTORY, findings)
 
     def test_rejects_findings_without_valid_citations(self):
@@ -154,7 +157,7 @@ class ReviewFindingsTest(unittest.TestCase):
             ({"severity": "high"}, "bad severity"),
             ({"rubric": "layout.vibes"}, "unknown rubric item"),
             ({"screenshot": "shots/empty-390.png"}, "screenshot not captured"),
-            ({"screenshot": "neighbours/list-1280.png"}, "screenshot not captured"),
+            ({"screenshot": "neighbours/1-default-1280.png"}, "screenshot not captured"),
             ({"state": "loading"}, "state does not match the screenshot"),
             ({"viewport": 1280}, "viewport does not match the screenshot"),
         ]
@@ -182,10 +185,9 @@ class CliTest(unittest.TestCase):
     def test_gates_brief_and_review_write_their_files(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
-            run, neighbour = make_run(d)
-            (run / "axe.json").write_text(json.dumps([{**MANIFEST["shots"][0], "screenshot": "shots/default-390.png",
-                                                       "violations": [{"id": "region", "impact": "moderate",
-                                                                       "help": "Landmarks", "nodes": [{"target": ["#f"]}]}]}]))
+            run, neighbours = make_run(d)
+            (run / "axe.json").write_text(json.dumps([{**MANIFEST["shots"][0], "violations": [
+                {"id": "region", "impact": "moderate", "help": "Landmarks", "nodes": [{"target": ["#f"]}]}]}]))
             (root / "page.tsx").write_text('<p className="text-[#333]" />\n')
             inventory, rubric, extra, found = root / "inv.md", root / "rubric.md", root / "extra.md", root / "found.json"
             inventory.write_text(INVENTORY)
@@ -195,7 +197,7 @@ class CliTest(unittest.TestCase):
 
             C.main(["gates", "--root", d, "--run", str(run), "--inventory", str(inventory), "--files", "page.tsx"])
             C.main(["brief", "--run", str(run), "--inventory", str(inventory), "--rubric", str(rubric),
-                    "--extra", str(extra), "--neighbours", str(neighbour)])
+                    "--extra", str(extra), "--neighbours", *map(str, neighbours)])
             C.main(["review", "--run", str(run), "--inventory", str(inventory), "--findings", str(found)])
 
             gates = json.loads((run / "gates.json").read_text())
@@ -209,11 +211,11 @@ class CliTest(unittest.TestCase):
 class AxeGateTest(unittest.TestCase):
     def test_lists_each_violation_per_screenshot_most_severe_first(self):
         report = [
-            {"screenshot": "shots/default-390.png", "state": "default", "viewport": 390, "violations": [
+            {"file": "shots/default-390.png", "state": "default", "viewport": 390, "violations": [
                 {"id": "region", "impact": "moderate", "help": "Content in landmarks",
                  "nodes": [{"target": ["#footer"]}]},
             ]},
-            {"screenshot": "shots/default-1280.png", "state": "default", "viewport": 1280, "violations": [
+            {"file": "shots/default-1280.png", "state": "default", "viewport": 1280, "violations": [
                 {"id": "color-contrast", "impact": "serious", "help": "Enough contrast",
                  "nodes": [{"target": [".muted"]}, {"target": ["nav > a"]}]},
             ]},

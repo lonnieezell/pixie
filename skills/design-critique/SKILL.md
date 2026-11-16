@@ -35,15 +35,9 @@ Make a run folder outside the repo with `mktemp -d "${TMPDIR:-/tmp}/pixie-critiq
 
 ## 2. Check the capture tools
 
-Capture runs from Pixie's own cache, `~/.cache/pixie/playwright`, and never installs anything into the target repo. It's ready when `node --version` works and the cache has `node_modules/playwright/package.json` at version `1.65.1`, `node_modules/axe-core/package.json` at version `4.14.1`, and a `browsers/chromium*` folder.
+Capture runs from Pixie's own cache, `~/.cache/pixie/playwright`, and never installs anything into the target repo. `/pixie:design-setup` owns that cache: read its **Install Playwright** offer (step 7, offer 2, in `${CLAUDE_SKILL_DIR}/../design-setup/SKILL.md`) for when the cache is ready and the pinned install commands.
 
-If Node works but the cache isn't ready, ask: "Design critique captures screenshots with Playwright and checks accessibility with axe-core. Want me to install them into Pixie's own cache, `~/.cache/pixie/playwright`? It never touches this repo's `package.json`." Only on yes:
-
-```bash
-npm install --prefix ~/.cache/pixie/playwright --save-exact playwright@1.65.1 axe-core@4.14.1
-PLAYWRIGHT_BROWSERS_PATH=~/.cache/pixie/playwright/browsers \
-  ~/.cache/pixie/playwright/node_modules/.bin/playwright install chromium
-```
+If `node --version` works but the cache isn't ready, make that same offer now, even if the inventory records an earlier `no`: capture can't run without it. Install only on yes.
 
 **Fallbacks.**
 - **No Node, or the user says no:** use a connected browser MCP (Claude in Chrome, the built-in browser, a Tauri MCP) that can resize the viewport and save a screenshot to a file. Save each screenshot as `RUN/shots/STATE-WIDTH.png` at each width, and write `RUN/manifest.json` by hand in the shape step 4 describes. There's no axe report in this mode: say so in the report's **Not checked**.
@@ -53,7 +47,7 @@ PLAYWRIGHT_BROWSERS_PATH=~/.cache/pixie/playwright/browsers \
 
 Track every process this run starts. Step 9 stops them.
 
-- **Verification skill** (`.claude/skills/verify-*/`, such as one made by `create-verifier`), unless `liveVerify.design` is `false`: follow its Launch and Doctor sections to get a usable local instance. If its auth section signs in through a browser, sign in once with Playwright (or the MCP) and save the session as a Playwright storage state at `RUN/auth.json`. Use its Cleanup in step 8. Its Evidence rules prefer text and avoid images. They don't apply here: screenshots are the evidence for this skill.
+- **Verification skill** (`.claude/skills/verify-*/`, such as one made by `create-verifier`), unless `liveVerify.design` is `false`: follow its Launch and Doctor sections to get a usable local instance. If its auth section signs in through a browser, sign in once with Playwright (or the MCP) and save the session as a Playwright storage state at `RUN/auth.json`. Use its Cleanup in step 9. Its Evidence rules prefer text and avoid images. They don't apply here: screenshots are the evidence for this skill.
 - **No verification skill, or `liveVerify.design: false`:** if there's no verification skill, recommend `/pixie:create-verifier` in one line, so later runs can launch and sign in on their own. Then use the inventory's **Launch fallback**. If it's `none` or missing, ask for the launch command and URL, or whether the app is already running. Confirm the command with the user before running it, and say what it will start.
 - If the screen needs a signed-in user and there's no way to sign in, ask the user for test credentials or a storage state file. Never use real user accounts without asking.
 
@@ -67,11 +61,10 @@ git status --porcelain -- package.json package-lock.json npm-shrinkwrap.json yar
 
 ```bash
 node SCRIPTS/capture.mjs --url "URL" --out "RUN" --states RUN/states.json [--storage-state RUN/auth.json]
-node SCRIPTS/capture.mjs --url "NEIGHBOUR_URL" --out "RUN/neighbour-1" --viewports 1280 \
-  --states '[{"name":"NEIGHBOUR_SLUG","steps":[]}]' [--storage-state RUN/auth.json]
+node SCRIPTS/capture.mjs --url "NEIGHBOUR_URL" --out "RUN/neighbour-1" --viewports 1280 [--storage-state RUN/auth.json]
 ```
 
-Name each neighbour's state after its route (such as `orders-list`), so the neighbour screenshots get distinct names. The default widths are 390 and 1280. A width over 1280 is refused, and screenshots are taken at device scale 1 and cut off at 4000px tall, which keeps them small.
+Capture each neighbour into its own folder (`neighbour-1`, `neighbour-2`). The default widths are 390 and 1280. A width over 1280 is refused, and screenshots are taken at device scale 1 and cut off at 4000px tall, which keeps them small.
 
 It writes `RUN/shots/STATE-WIDTH.png`, `RUN/axe.json`, and `RUN/manifest.json`:
 
@@ -105,10 +98,10 @@ These go in the report ahead of the critic's findings. A raw value the inventory
 
 ```bash
 python3 SCRIPTS/critique.py brief --run "RUN" --rubric "${CLAUDE_SKILL_DIR}/references/rubric.md" \
-  [--extra RUN/extra-rubric.md] --neighbours RUN/neighbour-1/shots/*.png
+  [--extra RUN/extra-rubric.md] --neighbours RUN/neighbour-*/shots/*.png
 ```
 
-It writes `RUN/critic/` and prints its path. The folder holds only the screenshots, the manifest, the rubric (the core rubric and the extra rows, minus anything the overrides drop) and `context.md` (the inventory's Rules and Rubric overrides). No source code goes in, and nothing else may be added to it.
+It writes `RUN/critic/` and prints its path. The folder holds only the screenshots, the manifest, the rubric (the core rubric plus the extra rows) and `context.md` (the inventory's Rules and Rubric overrides). No source code goes in, and nothing else may be added to it. Don't view the screenshots yourself: the critic does, and each image costs tokens.
 
 **Critic.** Start one `pixie:design-critic` agent. Give it the absolute path of `RUN/critic` and nothing else: no code, no file paths from the repo, no summary of what you think is wrong. Save its JSON reply to `RUN/critic-findings.json`. If the reply isn't a JSON array, ask it once to answer in the format its instructions give.
 
@@ -138,7 +131,7 @@ The report:
 
 - **URL:** URL
 - **Date:** YYYY-MM-DD, commit SHORT_SHA
-- **Captured with:** Playwright 1.65.1 / BROWSER MCP, widths 390 and 1280
+- **Captured with:** Playwright / BROWSER MCP, widths 390 and 1280
 - **States:** default, menu open
 - **Neighbours:** /orders/list
 
@@ -195,5 +188,3 @@ Ask once, with AskUserQuestion:
 Whatever the user picked, and also when the run stops early:
 - Run the verification skill's Cleanup, or stop each process this run started. Leave the user's own processes running.
 - Delete `RUN`. The report and its screenshots are the evidence that stays.
-
-Claude never runs this skill on its own. The user types `/pixie:design-critique`.
