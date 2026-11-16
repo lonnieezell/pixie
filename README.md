@@ -16,7 +16,7 @@ Install Claude Code and sign in. You should be able to start a session with `cla
 
 ### GitHub CLI
 
-The `babysit`, `catch`, `checkup`, `maintain-verifier`, `plan-task`, `prune-tests`, and `tackle` skills use the GitHub CLI (`gh`) to read and write pull requests and issues. `poke` uses it only if you ask it to file its findings as issues.
+The `babysit`, `catch`, `checkup`, `maintain-verifier`, `plan-task`, `prune-tests`, `tackle`, and `vet` skills use the GitHub CLI (`gh`) to read and write pull requests and issues. `poke` uses it only if you ask it to file its findings as issues.
 
 1. Install `gh` if you don't have it.
 2. Sign in:
@@ -146,6 +146,7 @@ From here, you can run `/pixie:untangle` to have Claude pick the top hotspot and
 | `tackle`      | Takes a `ready-for-agent` issue to an open PR               | `/pixie:tackle 142`                                | `gh`                              |
 | `tdd`         | Builds a change test-first, red then green                  | `/pixie:tdd mode=bug #142`                         | —                                 |
 | `untangle`    | Refactors a hotspot or a named area until it's clean        | `/pixie:untangle src/Billing`                      | `km`                              |
+| `vet`         | Reviews someone else's PR and posts one review after you approve it | `/pixie:vet 142`                           | `gh`                              |
 
 Some skills only run when you type them. See the [Skills reference](docs/reference/skills.md) for full details on each skill: arguments, limits, and output.
 
@@ -158,6 +159,6 @@ New to Pixie? Start with the [tutorial](docs/tutorial/first-issue-to-pr.md). It 
 The [docs home](docs/README.md) lists everything:
 
 - **Tutorial:** [Ship your first change with Pixie](docs/tutorial/first-issue-to-pr.md)
-- **How-to guides:** [set up a repo](docs/how-to/set-up-a-repo.md), [fix a bug](docs/how-to/fix-a-bug.md), [clean up hotspots](docs/how-to/clean-up-hotspots.md), [find bugs and UX gaps](docs/how-to/find-ux-bugs.md), [prune a test suite](docs/how-to/prune-a-test-suite.md), [tune the code-health hook](docs/how-to/tune-the-code-health-hook.md)
+- **How-to guides:** [set up a repo](docs/how-to/set-up-a-repo.md), [fix a bug](docs/how-to/fix-a-bug.md), [clean up hotspots](docs/how-to/clean-up-hotspots.md), [find bugs and UX gaps](docs/how-to/find-ux-bugs.md), [review someone else's PR](docs/how-to/review-a-pr.md), [prune a test suite](docs/how-to/prune-a-test-suite.md), [tune the code-health hook](docs/how-to/tune-the-code-health-hook.md)
 - **Reference:** [skills](docs/reference/skills.md), [labels, branches, and files](docs/reference/labels-and-branches.md), [agents and the code-health hook](docs/reference/agents-and-hook.md)
 - **Explanation:** [How Pixie works](docs/explanation/how-pixie-works.md)

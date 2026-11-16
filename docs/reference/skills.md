@@ -24,6 +24,7 @@ New to Pixie? Start with the [tutorial](../tutorial/first-issue-to-pr.md) instea
 | `tackle` | Takes a `ready-for-agent` issue to an open PR | `/pixie:tackle 142` | `gh` | No |
 | `tdd` | Builds a change test-first, red then green | `/pixie:tdd mode=bug #142` | — | Only when asked by name |
 | `untangle` | Refactors a hotspot or a named area until it's clean | `/pixie:untangle src/Billing` | `km` | Yes |
+| `vet` | Reviews someone else's PR and posts one review after you approve it | `/pixie:vet 142` | `gh` | No |
 
 **Claude can start it on its own** means Claude may load the skill when your request matches, without the slash command. For example, asking "what should we refactor?" can load `code-health`.
 
@@ -400,4 +401,38 @@ Drives the `code-health` refactor loop. It decides what to refactor and when to 
 - It never pushes, opens a PR, or merges. You review the branch.
 - It stops when the code is clean, when only truly needed complexity is left, after two passes with no progress, or after about 25 steps.
 - If the repo has a verification skill, it drives the changed features in the running app at the end, and reverts any step that changed their behavior.
+
+## vet
+
+Reviews **one** pull request written by someone else. It focuses on what reading the diff misses: changes that should be there but aren't, tests that don't test the change, gaps between the linked issue and the code, and code outside the diff that the change breaks.
+
+**Argument:** a PR number, or the URL of a PR in the current repo.
+
+**How it works:**
+
+1. Reads the PR, its linked issues, CI results and existing review threads. It writes down what the change should do in its own words, without quoting the PR.
+2. Asks an agent that hasn't seen the diff to predict which files and symbols a complete change would touch. Then it compares that prediction to the PR. Predicted files the PR didn't touch may be missing changes. Changed files nobody predicted may be scope creep.
+3. Checks out the PR's exact head commit, detached. It runs locally only the build, lint and test steps CI didn't already run.
+4. Has an agent find code outside the diff that uses what changed, and whether the change breaks it.
+5. Runs the PR's new tests against the base branch. A new test that passes without the change doesn't test it. It also looks for weakened assertions in existing tests, and new code paths no test reaches.
+6. Runs the `checkup` hunters (`audit-bugs`, `audit-security`, `audit-performance`) on the changed files. Meanwhile, Claude checks authorization, deploy and config edges, and changes hidden inside renames, lockfiles and new dependencies.
+7. Sends each finding to `audit-verifier`, which tries to refute it without seeing how it was found. If you agree, `audit-prover` writes a failing test for each high or critical finding.
+8. Drafts the review and suggests a verdict, then shows it to you.
+
+**Questions it asks you:** whether to run code from a fork whose author isn't a collaborator, whether to continue when the PR changes Claude config files (`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.mcp.json`, `.envrc`), whether to install changed dependencies, and whether to prove blocking findings.
+
+**Limits:**
+
+- Interactive only. It never posts without your approval of the exact text.
+- It needs a clean working tree. It never stashes or discards your work.
+- It never pushes to, merges, closes, retitles or relabels the PR, and never resolves or replies to anyone else's review thread.
+- It reports problems in code the PR didn't touch only when the PR makes them reachable or worse.
+- It doesn't report style or formatting that a linter would catch.
+- It stops if the URL is for a PR in another repo, or if the PR's head moves before posting.
+- On your own PR, it can only post comments, because GitHub doesn't let you approve or block your own PR.
+- Claude never runs this skill on its own. You must type `/pixie:vet`.
+
+**Output:** a draft review, sorted into Blocking, Should fix, Question and Nit (three at most), with a suggested verdict and a Coverage line saying what it did and didn't check. Its run files, including `review.md`, go to `ai/vet/pr-<number>-<date>-<time>/`. It adds `ai/` to `.git/info/exclude`.
+
+**Follow-up:** you choose to post with the suggested verdict, post as a comment only, edit the draft first, or not post. Posting sends everything as one review, with inline comments on the lines the PR changed. When it finishes, it returns you to the branch or commit you started on. See [Review someone else's pull request](../how-to/review-a-pr.md).
 

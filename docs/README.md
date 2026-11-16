@@ -19,6 +19,7 @@ Install it first. See [Prerequisites](../README.md#prerequisites) and [Install t
 | Turn a task into a plan and an issue | `plan-task` | [Tutorial](tutorial/first-issue-to-pr.md) |
 | Have an agent build an issue | `tackle` | [Tutorial](tutorial/first-issue-to-pr.md) |
 | Get my open PRs mergeable | `babysit` | [Tutorial](tutorial/first-issue-to-pr.md) |
+| Review someone else's PR | `vet` | [Review someone else's pull request](how-to/review-a-pr.md) |
 | Fix a bug I understand | `tdd mode=bug` | [Fix a bug](how-to/fix-a-bug.md) |
 | Find out why something is broken | `diagnose` | [Fix a bug](how-to/fix-a-bug.md) |
 | Build a change test-first | `tdd` | [Skills reference](reference/skills.md#tdd) |
@@ -45,6 +46,7 @@ Install it first. See [Prerequisites](../README.md#prerequisites) and [Install t
 - [Fix a bug](how-to/fix-a-bug.md)
 - [Clean up hotspots](how-to/clean-up-hotspots.md)
 - [Find bugs and UX gaps in a running app](how-to/find-ux-bugs.md)
+- [Review someone else's pull request](how-to/review-a-pr.md)
 - [Prune a test suite](how-to/prune-a-test-suite.md)
 - [Audit a codebase with checkup](how-to/audit-a-codebase.md)
 - [Turn production errors into issues with catch](how-to/turn-production-errors-into-issues.md)

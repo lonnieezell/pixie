@@ -77,6 +77,7 @@ Pushes and PRs:
 | `tackle` | A claim comment, a tier comment such as `Tier 2 (medium, normal risk), route implement: ...`, and a comment saying why if it stops |
 | `babysit` | A reply on every review-bot thread it handles: `Fixed in <sha>: ...`, `Not changing: ...`, or a note that it's deferred to maintainers |
 | `poke` | Issues for the findings you pick, one per finding |
+| `vet` | One review on the PR, with inline comments, only after you approve its exact text. The verdict is the one you pick: Comment, Request changes or Approve. |
 | `prune-tests` | Issues for the tests that need a human, if you say yes. Attended mode only. |
 | `checkup`, `catch` | Issues for confirmed high and critical findings, or private draft security advisories. A "still present" comment on an open issue, at most once a week. A "queued for auto-fix" comment when auto-fix promotes an issue. Each one starts with an AI-generated notice. |
 
@@ -92,7 +93,8 @@ Pushes and PRs:
 | `docs/agents/pixie.json` | You | Yes. Turns live checks off per skill. See [Live checks](live-checks.md). |
 | `docs/agents/checkup-baseline.json` | `checkup`, through the baseline PR | Yes, once you merge the PR |
 | `ai/checkup/DATE-HHMM/`, `ai/catch/DATE-HHMM/` | `checkup`, `catch` | No. They add `ai/` to `.git/info/exclude`. |
+| `ai/vet/pr-<number>-<date>-<time>/` | `vet` | No. It adds `ai/` to `.git/info/exclude`. |
 | `.kimun.toml` | You, with `km init` (or `setup` runs it if you say yes) | Your choice. Commit it to share thresholds. |
 | `.code-health-off` | You | Your choice. It turns off the edit hook for the repo. |
 
-`diagnose`, `tdd`, `tackle`, and `plan-task` keep scratch files in a temporary folder outside your repo.
+`diagnose`, `tdd`, `tackle`, and `plan-task` keep scratch files in a temporary folder outside your repo. `vet` also makes a temporary worktree of the base branch outside your repo, and removes it when it finishes.
