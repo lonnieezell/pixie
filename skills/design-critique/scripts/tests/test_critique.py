@@ -121,6 +121,56 @@ class BriefTest(unittest.TestCase):
             self.assertNotIn("status:", context)
 
 
+def finding(**over):
+    f = {
+        "rubric": "type.hierarchy", "severity": "S2", "screenshot": "shots/default-390.png",
+        "state": "default", "viewport": 390,
+        "observed": "Two headings of the same size compete at the top of the order list.",
+        "fix": "Make the page title the only heading at the largest size.",
+    }
+    f.update(over)
+    return f
+
+
+class ReviewFindingsTest(unittest.TestCase):
+    def review(self, findings):
+        with tempfile.TemporaryDirectory() as d:
+            run, neighbour = make_run(d)
+            critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, [neighbour])
+            return C.review_findings(critic, INVENTORY, findings)
+
+    def test_rejects_findings_without_valid_citations(self):
+        cases = [
+            ({"rubric": ""}, "missing rubric"),
+            ({"observed": "feels cramped"}, "observed is too vague"),
+            ({"fix": ""}, "missing fix"),
+            ({"severity": "high"}, "bad severity"),
+            ({"rubric": "layout.vibes"}, "unknown rubric item"),
+            ({"screenshot": "shots/empty-390.png"}, "screenshot not captured"),
+            ({"screenshot": "neighbours/list-1280.png"}, "screenshot not captured"),
+            ({"state": "loading"}, "state does not match the screenshot"),
+            ({"viewport": 1280}, "viewport does not match the screenshot"),
+        ]
+        for over, reason in cases:
+            with self.subTest(over=over):
+                result = self.review([finding(**over)])
+                self.assertEqual(result["accepted"], [])
+                self.assertEqual([r["reason"] for r in result["rejected"]], [reason])
+
+    def test_override_suppresses_matching_finding(self):
+        result = self.review([finding(rubric="type.line-length")])
+        self.assertEqual((result["accepted"], result["rejected"]), ([], []))
+        self.assertEqual([f["rubric"] for f in result["suppressed"]], ["type.line-length"])
+
+    def test_ranks_accepted_findings_by_severity(self):
+        result = self.review([
+            finding(severity="S3"),
+            finding(rubric="wdg.focus-visible", severity="S1", screenshot="shots/default-1280.png", viewport=1280),
+            finding(severity="S2"),
+        ])
+        self.assertEqual([f["severity"] for f in result["accepted"]], ["S1", "S2", "S3"])
+
+
 class AxeGateTest(unittest.TestCase):
     def test_lists_each_violation_per_screenshot_most_severe_first(self):
         report = [

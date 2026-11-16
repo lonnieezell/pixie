@@ -76,7 +76,54 @@ def brief(run, inventory, rubric, extra, neighbours):
     return critic
 
 
-IMPACTS =["critical", "serious", "moderate", "minor"]
+SEVERITIES = ["S1", "S2", "S3", "S4"]
+REQUIRED = ["rubric", "severity", "screenshot", "state", "viewport", "observed", "fix"]
+MIN_OBSERVED_WORDS = 6
+
+
+def rubric_ids(rubric):
+    return {m.group(1) for m in map(RUBRIC_ROW.match, rubric.splitlines()) if m}
+
+
+def rejection(f, ids, shots):
+    for field in REQUIRED:
+        if f.get(field) in (None, ""):
+            return f"missing {field}"
+    if f["severity"] not in SEVERITIES:
+        return "bad severity"
+    if len(str(f["observed"]).split()) < MIN_OBSERVED_WORDS:
+        return "observed is too vague"
+    if f["rubric"] not in ids:
+        return "unknown rubric item"
+    shot = shots.get(f["screenshot"])
+    if not shot:
+        return "screenshot not captured"
+    if f["state"] != shot["state"]:
+        return "state does not match the screenshot"
+    if f["viewport"] != shot["viewport"]:
+        return "viewport does not match the screenshot"
+    return None
+
+
+def review_findings(critic, inventory, findings):
+    """Split the critic's findings into accepted (ranked), rejected (with a reason) and suppressed."""
+    critic = Path(critic)
+    ids = rubric_ids((critic / "rubric.md").read_text())
+    shots = {s["file"]: s for s in json.loads((critic / "manifest.json").read_text())["shots"]}
+    drop = dropped(inventory)
+    result = {"accepted": [], "rejected": [], "suppressed": []}
+    for f in findings:
+        if f.get("rubric") in drop:
+            result["suppressed"].append(f)
+        elif reason := rejection(f, ids, shots):
+            result["rejected"].append({"finding": f, "reason": reason})
+        else:
+            result["accepted"].append(f)
+    result["accepted"].sort(key=lambda f: SEVERITIES.index(f["severity"]))
+    return result
+
+
+IMPACTS = ["critical", "serious", "moderate", "minor"]
 
 
 def axe_findings(report):
