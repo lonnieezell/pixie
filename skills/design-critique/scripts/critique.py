@@ -34,6 +34,22 @@ def token_hits(path, text):
     return hits
 
 
+IMPACTS = ["critical", "serious", "moderate", "minor"]
+
+
+def axe_findings(report):
+    """One entry per axe violation per screenshot, most severe impact first."""
+    found = []
+    for shot in report:
+        for v in shot["violations"]:
+            found.append({
+                "rule": v["id"], "impact": v.get("impact") or "minor", "help": v["help"],
+                "nodes": len(v["nodes"]), "targets": [" ".join(map(str, n["target"])) for n in v["nodes"]][:5],
+                "screenshot": shot["screenshot"], "state": shot["state"], "viewport": shot["viewport"],
+            })
+    return sorted(found, key=lambda f: IMPACTS.index(f["impact"]) if f["impact"] in IMPACTS else len(IMPACTS))
+
+
 def token_gate(root, inventory, files):
     skip = token_files(inventory)
     hits = []

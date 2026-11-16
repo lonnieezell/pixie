@@ -70,5 +70,26 @@ class TokenGateTest(unittest.TestCase):
             self.assertEqual([(h["file"], h["match"]) for h in hits], [("page.tsx", "text-[#333]")])
 
 
+class AxeGateTest(unittest.TestCase):
+    def test_lists_each_violation_per_screenshot_most_severe_first(self):
+        report = [
+            {"screenshot": "shots/default-390.png", "state": "default", "viewport": 390, "violations": [
+                {"id": "region", "impact": "moderate", "help": "Content in landmarks",
+                 "nodes": [{"target": ["#footer"]}]},
+            ]},
+            {"screenshot": "shots/default-1280.png", "state": "default", "viewport": 1280, "violations": [
+                {"id": "color-contrast", "impact": "serious", "help": "Enough contrast",
+                 "nodes": [{"target": [".muted"]}, {"target": ["nav > a"]}]},
+            ]},
+        ]
+        self.assertEqual(C.axe_findings(report), [
+            {"rule": "color-contrast", "impact": "serious", "help": "Enough contrast", "nodes": 2,
+             "targets": [".muted", "nav > a"], "screenshot": "shots/default-1280.png", "state": "default",
+             "viewport": 1280},
+            {"rule": "region", "impact": "moderate", "help": "Content in landmarks", "nodes": 1,
+             "targets": ["#footer"], "screenshot": "shots/default-390.png", "state": "default", "viewport": 390},
+        ])
+
+
 if __name__ == "__main__":
     unittest.main()
