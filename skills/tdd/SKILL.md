@@ -48,6 +48,8 @@ The full suite is the CI's job. Never claim it passed unless you actually ran it
 
 Run the relevant set before writing anything.
 
+If the caller passes a baseline taken on this same unchanged tree that covered the relevant set (such as a full-suite run), use it instead of running the set again. Take its pre-existing failures that fall in the relevant set and apply the rules below to them.
+
 - **Green:** record the command and the pass count, then continue.
 - **Red:** do not fix unrelated failures. Record them as pre-existing (test names plus a one-line failure summary) and exclude them from the per-slice checks by name. If they touch the code you are about to change, stop and report, because a red baseline in your area makes every later signal ambiguous.
   - **Exception, bug mode:** if an existing failure shows the reported symptom, it *is* the bug. Use it as the first slice's red (the prediction is the reported symptom) instead of stopping.
