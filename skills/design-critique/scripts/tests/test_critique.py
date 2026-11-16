@@ -171,6 +171,34 @@ class ReviewFindingsTest(unittest.TestCase):
         self.assertEqual([f["severity"] for f in result["accepted"]], ["S1", "S2", "S3"])
 
 
+class CliTest(unittest.TestCase):
+    def test_gates_brief_and_review_write_their_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            run, neighbour = make_run(d)
+            (run / "axe.json").write_text(json.dumps([{**MANIFEST["shots"][0], "screenshot": "shots/default-390.png",
+                                                       "violations": [{"id": "region", "impact": "moderate",
+                                                                       "help": "Landmarks", "nodes": [{"target": ["#f"]}]}]}]))
+            (root / "page.tsx").write_text('<p className="text-[#333]" />\n')
+            inventory, rubric, extra, found = root / "inv.md", root / "rubric.md", root / "extra.md", root / "found.json"
+            inventory.write_text(INVENTORY)
+            rubric.write_text(RUBRIC)
+            extra.write_text(EXTRA)
+            found.write_text(json.dumps([finding(), finding(rubric="type.line-length")]))
+
+            C.main(["gates", "--root", d, "--run", str(run), "--inventory", str(inventory), "--files", "page.tsx"])
+            C.main(["brief", "--run", str(run), "--inventory", str(inventory), "--rubric", str(rubric),
+                    "--extra", str(extra), "--neighbours", str(neighbour)])
+            C.main(["review", "--run", str(run), "--inventory", str(inventory), "--findings", str(found)])
+
+            gates = json.loads((run / "gates.json").read_text())
+            self.assertEqual([g["rule"] for g in gates["axe"]], ["region"])
+            self.assertEqual([g["match"] for g in gates["tokens"]], ["text-[#333]"])
+            self.assertTrue((run / "critic" / "rubric.md").exists())
+            review = json.loads((run / "findings.json").read_text())
+            self.assertEqual([len(review[k]) for k in ("accepted", "rejected", "suppressed")], [1, 0, 1])
+
+
 class AxeGateTest(unittest.TestCase):
     def test_lists_each_violation_per_screenshot_most_severe_first(self):
         report = [

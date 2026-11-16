@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Scripted gates and critic plumbing for /design-critique."""
+import argparse
 import json
 import re
 import shutil
@@ -146,3 +147,43 @@ def token_gate(root, inventory, files):
         if rel not in skip:
             hits += token_hits(rel, (Path(root) / rel).read_text(errors="replace"))
     return hits
+
+
+def read(path):
+    """A file's text, or '' when it's missing (a repo without a design inventory)."""
+    return Path(path).read_text() if path and Path(path).exists() else ""
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description=__doc__)
+    sub = p.add_subparsers(dest="cmd", required=True)
+    g = sub.add_parser("gates", help="axe and token-compliance gates -> RUN/gates.json")
+    g.add_argument("--root", default=".")
+    g.add_argument("--files", nargs="*", default=[], help="repo-relative files that render the route")
+    b = sub.add_parser("brief", help="the critic's code-free folder -> RUN/critic/")
+    b.add_argument("--rubric", required=True)
+    b.add_argument("--extra", help="extra rubric rows from installed design skills")
+    b.add_argument("--neighbours", nargs="*", default=[])
+    r = sub.add_parser("review", help="validate, suppress and rank the critic's findings -> RUN/findings.json")
+    r.add_argument("--findings", required=True)
+    for s in (g, b, r):
+        s.add_argument("--run", required=True)
+        s.add_argument("--inventory", default="docs/agents/design-system.md")
+    a = p.parse_args(argv)
+    run, inventory = Path(a.run), read(a.inventory)
+
+    if a.cmd == "gates":
+        axe = axe_findings(json.loads(read(run / "axe.json") or "[]"))
+        tokens = token_gate(a.root, inventory, a.files)
+        (run / "gates.json").write_text(json.dumps({"axe": axe, "tokens": tokens}, indent=2))
+        print(f"axe violations: {len(axe)}, raw values: {len(tokens)} -> {run / 'gates.json'}")
+    elif a.cmd == "brief":
+        print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours))
+    else:
+        result = review_findings(run / "critic", inventory, json.loads(read(a.findings)))
+        (run / "findings.json").write_text(json.dumps(result, indent=2))
+        print(", ".join(f"{k}: {len(v)}" for k, v in result.items()) + f" -> {run / 'findings.json'}")
+
+
+if __name__ == "__main__":
+    main()
