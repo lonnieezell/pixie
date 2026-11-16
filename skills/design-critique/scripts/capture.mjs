@@ -3,6 +3,9 @@
 // Playwright and axe-core load from Pixie's own cache, never from the target repo.
 //
 //   node capture.mjs --url URL --out DIR [--viewports 390,1280] [--states JSON|FILE] [--storage-state FILE]
+//   node capture.mjs --url BASE --out DIR --matrix JSON|FILE [--viewports 390,1280] [--storage-state FILE]
+//
+// --matrix captures a preview harness's state matrix instead of one page; its paths resolve against BASE.
 //
 // Exit codes: 0 captured (per-state errors are in the manifest), 1 bad options or the page failed to load,
 // 3 Playwright, axe-core or Chromium missing from the cache. PIXIE_PLAYWRIGHT_DIR points at another cache, for testing.
@@ -108,7 +111,7 @@ async function runStep(page, step) {
   return page[action](arg);
 }
 
-async function captureShot(browser, o, shot, axe) {
+export async function captureShot(browser, o, shot, axe) {
   const context = await browser.newContext({
     viewport: shot.viewport,
     deviceScaleFactor: 1,
@@ -118,8 +121,8 @@ async function captureShot(browser, o, shot, axe) {
   try {
     const page = await context.newPage();
     // A dev server may compile the route on its first request, so loading gets longer than a step.
-    const response = await page.goto(o.url, { waitUntil: "load", timeout: LOAD_TIMEOUT_MS });
-    if (response && response.status() >= 400) throw new Error(`HTTP ${response.status()} for ${o.url}`);
+    const response = await page.goto(shot.url, { waitUntil: "load", timeout: LOAD_TIMEOUT_MS });
+    if (response && response.status() >= 400) throw new Error(`HTTP ${response.status()} for ${shot.url}`);
     await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
     for (const step of shot.steps) await runStep(page, step);
     const height = Math.min(await page.evaluate(() => document.documentElement.scrollHeight), MAX_HEIGHT);

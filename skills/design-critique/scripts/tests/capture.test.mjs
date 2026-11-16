@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parseOptions } from "../capture.mjs";
+import { captureShot, parseOptions } from "../capture.mjs";
 
 test("defaults to a default state at 390 and 1280 wide", () => {
   const o = parseOptions(["--url", "http://localhost:8080/orders", "--out", "/tmp/run"]);
@@ -53,6 +53,29 @@ test("plans every matrix state at desktop, plus typical and overflow at mobile, 
       ["shots/menu-open-1280.png", "http://localhost:5173/__preview/order-list?state=typical", 1],
     ],
   );
+});
+
+// Stands in for Playwright's browser and records what the page was asked to do.
+function fakeBrowser(calls) {
+  const page = {
+    goto: async (url) => (calls.push(["goto", url]), { status: () => 200 }),
+    waitForLoadState: async () => {},
+    click: async (selector) => calls.push(["click", selector]),
+    screenshot: async ({ path }) => calls.push(["screenshot", path]),
+    evaluate: async (fn) => (typeof fn === "string" ? undefined : String(fn).includes("axe") ? { violations: [] } : 900),
+  };
+  return { newContext: async () => ({ setDefaultTimeout() {}, newPage: async () => page, close: async () => {} }) };
+}
+
+test("replays an interaction's steps on its base state's page before the screenshot", async () => {
+  const o = parseOptions(["--url", "http://localhost:5173", "--out", "/tmp/run", "--matrix", JSON.stringify(MATRIX)]);
+  const calls = [];
+  await captureShot(fakeBrowser(calls), o, o.shots.find((s) => s.state === "menu open"), "");
+  assert.deepEqual(calls, [
+    ["goto", "http://localhost:5173/__preview/order-list?state=typical"],
+    ["click", "button[aria-label=Menu]"],
+    ["screenshot", "/tmp/run/shots/menu-open-1280.png"],
+  ]);
 });
 
 test("rejects bad options", () => {
