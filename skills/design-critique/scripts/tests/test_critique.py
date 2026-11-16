@@ -51,6 +51,8 @@ class TokenGateTest(unittest.TestCase):
             ("background: #11223344;", ["#11223344"]),
             ('<a href="#add">Add</a>', []),
             ("&#123; is an entity", []),
+            ("<td>#1001</td>", []),
+            ('<td style="color:#333">#1001</td>', ["#333"]),
             ('<div class="mt-4 text-sm">', []),
             ("const first = items[0];", []),
         ]

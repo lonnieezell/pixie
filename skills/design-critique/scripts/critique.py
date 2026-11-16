@@ -8,7 +8,8 @@ from pathlib import Path
 
 # A Tailwind arbitrary value, with any variant prefixes: text-[#333], md:w-[calc(100%-2rem)].
 ARBITRARY = re.compile(r"(?<![\w\[:-])(?:[a-z][a-z0-9-]*:)*-?[a-z][a-z0-9-]*-\[[^\]\s]+\]")
-HEX = re.compile(r"(?<![&\w#])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w-])")
+# Not after `&` (an entity), and not right after `>` or before `<`: that's text, such as <td>#1001</td>.
+HEX = re.compile(r"(?<![&\w#>])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w<-])")
 LINK_ATTR = re.compile(r"(?:href|to)=[\"']$")
 
 
