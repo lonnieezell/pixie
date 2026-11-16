@@ -14,6 +14,7 @@ import { pathToFileURL } from "node:url";
 
 const MAX_WIDTH = 1280;
 const MAX_HEIGHT = 4000;
+const STEP_TIMEOUT_MS = 10000;
 const ACTIONS = ["click", "fill", "press", "hover", "waitFor"];
 export const CACHE = process.env.PIXIE_PLAYWRIGHT_DIR || join(homedir(), ".cache", "pixie", "playwright");
 
@@ -76,6 +77,7 @@ async function captureShot(browser, o, shot, axePath) {
     deviceScaleFactor: 1,
     ...(o.storageState ? { storageState: o.storageState } : {}),
   });
+  context.setDefaultTimeout(STEP_TIMEOUT_MS);
   try {
     const page = await context.newPage();
     const response = await page.goto(o.url, { waitUntil: "load" });
