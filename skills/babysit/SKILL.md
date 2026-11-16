@@ -1,12 +1,12 @@
 ---
 name: babysit
-description: Babysit a GitHub repo's open pull requests oldest-first until each is mergeable: fix conflicts, handle two rounds of review-bot comments, get CI green. Never merges.
+description: Babysit your own open pull requests in a GitHub repo oldest-first until each is mergeable: fix conflicts, handle two rounds of review-bot comments, get CI green. Never merges.
 disable-model-invocation: true
 allowed-tools: Bash(gh repo view:*), Bash(gh pr list:*), Bash(gh pr view:*), Bash(gh pr checks:*), Bash(gh pr checkout:*), Bash(gh run view:*), Bash(gh api user:*), Bash(gh api graphql:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git fetch:*)
 ---
 # Babysit
 
-Work through a repository's open pull requests one at a time, oldest first, and bring each to a **mergeable** state: no conflicts, every review-bot thread answered and resolved, and all required CI green. Then move to the next PR.
+Work through your own open pull requests in a repository (the ones you authored) one at a time, oldest first, and bring each to a **mergeable** state: no conflicts, every review-bot thread answered and resolved, and all required CI green. Then move to the next PR.
 
 Babysitting **never authorizes merging.** Its job ends where a human's job begins.
 
@@ -37,7 +37,6 @@ Never, under any circumstances:
 
 - **Park the whole PR** (no pushes at all) when a human requested changes (`reviewDecision == CHANGES_REQUESTED`). The author is probably mid-edit, and your push would collide with theirs.
 - **Skip just that item, and keep fixing the rest,** when a single fix would change product behavior or public API, a conflict's resolution is ambiguous about intent, or a CI failure needs secrets, infra or permissions.
-- **Block the PR** when it's from a fork you can't push to (`maintainerCanModify: false`).
 
 ## Procedure
 
@@ -51,30 +50,21 @@ Get your own login. Thread filters below need it as `ME_LOGIN`:
 gh api user --jq .login
 ```
 
-Build the queue:
+Build the queue from **your own** PRs only. Never touch PRs other people (or bots) opened:
 
 ```bash
-gh pr list --repo OWNER/REPO --state open --search "sort:created-asc" \
-  --json number,title,url,isDraft,headRefName,baseRefName,isCrossRepository,maintainerCanModify,author \
+gh pr list --repo OWNER/REPO --state open --author "@me" --search "sort:created-asc" \
+  --json number,title,url,isDraft,headRefName,baseRefName \
   --limit 100
 ```
 
-Leave these out of the queue, and list each in the report:
+If a PR number given as an argument isn't in this list, say so and don't process it.
 
-- **Drafts.**
-- **Bot-authored PRs** (`author.is_bot == true`, e.g. Dependabot or Renovate). Once a human commits to a Dependabot PR, Dependabot stops rebasing it. Leave them to their bot.
+Leave drafts out of the queue, and list them in the report.
 
 **Stacked PRs:** if a PR's `baseRefName` is another open PR's `headRefName`, process the parent PR first, even if it's newer.
 
 Process the rest in order, **one at a time** — finish (or park) a PR before touching the next.
-
-**Don't run outsiders' code.** Step 1 checks out the PR, and later steps run its tests and installs on this machine. For every PR with `isCrossRepository: true`, check that its author is a collaborator before checking it out:
-
-```bash
-gh api repos/OWNER/REPO/collaborators/AUTHOR_LOGIN --silent && echo collaborator
-```
-
-If that fails, for any reason, don't check the PR out. Mark it **Blocked** as an untrusted fork and list it in the report. Process it only if the user names that PR and says to go ahead.
 
 Create a task-list item per PR so progress is visible.
 
@@ -203,7 +193,7 @@ Re-read `mergeable`, `mergeStateStatus`, `reviewDecision` and `statusCheckRollup
 - **Ready**: `mergeStateStatus` is `CLEAN`, or `UNSTABLE` (only optional checks fail; list them). Nothing outstanding. Still don't merge.
 - **Ready — awaiting approval**: `mergeStateStatus` is `BLOCKED` and `reviewDecision` is `REVIEW_REQUIRED`, with no conflicts, all required checks green and all bot threads resolved or deferred. Only human review remains.
 - **Waiting on human**: human requested changes, deferred bot items, the author is actively pushing, or a decision is needed.
-- **Blocked**: can't push (fork), untrusted fork (not checked out), infra/secret CI failure, external check failure, persistent flake, ambiguous conflict.
+- **Blocked**: infra/secret CI failure, external check failure, persistent flake, ambiguous conflict.
 
 Then check out the next PR and go again.
 
@@ -272,7 +262,7 @@ Paginate if a PR has more than 100 threads, or a thread has more than 50 comment
 
 At the end (or if stopped early), give a short table: PR # (linked to its `url`), title, final state, what was done (conflicts fixed / N bot threads fixed / N refused / CI fixes), and what a human needs to do next. Below the table, list:
 
-- skipped drafts and bot-authored PRs
+- skipped drafts
 - failing optional checks, and failing external checks with their links
 - any round-3 bot comments left open
 - how many PRs are still in the queue, if the PR limit stopped the run
