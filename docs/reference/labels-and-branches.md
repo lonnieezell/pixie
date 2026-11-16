@@ -89,6 +89,7 @@ Pushes and PRs:
 | `ai/poke/<date>-<section>.md` and a screenshot folder beside it | `poke` | No. `poke` adds `ai/` to `.gitignore`. |
 | `.prune/<area>/` | `prune-tests` | No. It's added to `.git/info/exclude`. Delete it when you're done. |
 | `docs/agents/pixie-labels.md` | `setup`, or you | Yes. Commit it so everyone uses the same labels. |
+| `docs/agents/design-system.md` | `design-setup`. You edit its `Annotations` and `Rubric overrides` sections. | Yes. Commit it so design work reuses the same components. |
 | `docs/agents/checkup.json` | You | Yes. Settings for `checkup` and `catch`. |
 | `docs/agents/pixie.json` | You | Yes. Turns live checks off per skill. See [Live checks](live-checks.md). |
 | `docs/agents/checkup-baseline.json` | `checkup`, through the baseline PR | Yes, once you merge the PR |

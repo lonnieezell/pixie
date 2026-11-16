@@ -33,7 +33,7 @@ Setup does four things:
 
 5. Claude writes the file and creates any labels the repo lacks, with a color and a description. It never changes labels you already have.
 
-6. If you don't have a `.kimun.toml`, Claude offers to run `km init`. If you don't have a `verify-*` skill, it offers to run `/pixie:create-verifier`. Say yes or no to each one.
+6. If you don't have a `.kimun.toml`, Claude offers to run `km init`. If you don't have a `verify-*` skill, it offers to run `/pixie:create-verifier`. Say yes or no to each one. If the repo has a UI and no design inventory, Claude also mentions `/pixie:design-setup`. It doesn't run it.
 
 7. Commit the new file, so everyone's agents use the same labels:
 

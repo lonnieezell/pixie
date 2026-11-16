@@ -13,6 +13,7 @@ New to Pixie? Start with the [tutorial](../tutorial/first-issue-to-pr.md) instea
 | `checkup` | Audits the codebase for security, performance and bugs, scores it, and files issues | `/pixie:checkup` or `/pixie:checkup scores` | `gh` to file issues; `km` optional | No |
 | `code-health` | Measures code health and guides refactoring | `/pixie:code-health did my changes make it worse?` | `km` | Yes |
 | `create-verifier` | Writes a project skill that drives your app like a user | `/pixie:create-verifier` | — | No |
+| `design-setup` | Catalogues the repo's design system for design work | `/pixie:design-setup` | — | No |
 | `diagnose` | Finds a bug's root cause, proves it, then fixes it | `/pixie:diagnose checkout total is wrong` | — | Only when asked by name |
 | `how` | Explains how part of the codebase works | `/pixie:how does authentication work` | — | Yes |
 | `huh` | Restates Claude's last reply in plain language | `/pixie:huh` | — | No |
@@ -152,6 +153,35 @@ Writes a verification skill for the current project. A verification skill is a r
 **Output:** a working, tested verification skill in your project. Other skills use it too: `tackle`, `diagnose`, `tdd`, `untangle`, `checkup`, `catch` and `poke` drive the app through it when one exists. See [Live checks](live-checks.md) to turn this off per skill.
 
 Claude never runs this skill on its own. You must type `/pixie:create-verifier`. Run `maintain-verifier` later to keep it up to date.
+
+## design-setup
+
+Catalogues the design system a repo already has, so design work reuses it instead of inventing parallel components. It supports React (Vite, Next, Inertia), Laravel Blade (Bootstrap or Tailwind) and CodeIgniter 4. React Native, Vue and Livewire are listed but not supported.
+
+**How it works:**
+
+1. Detects the stack and picks the folders to scan.
+2. Reads the tokens (Tailwind config or `@theme`, Bootstrap and SCSS variables, CSS custom properties), the components, the layout shells and the conventions the code follows.
+3. Marks each component `preferred` or `legacy`. A `status:` line you write in the inventory's Annotations section always decides it. Otherwise it infers the status from names, `@deprecated` comments and recent use, and says why.
+4. Finds markup repeated across views, with a canonical example, a count and a suggestion for a component to extract. It only suggests. It never refactors.
+5. Sets the Baseline target from `browserslist`, or a Baseline line in `CLAUDE.md` or `AGENTS.md`. Otherwise it asks, with Widely available as the default.
+6. Shows a summary, asks only what it couldn't work out, then writes the inventory.
+7. Makes each offer once and records your answer in the inventory: run `create-verifier` if there's no verification skill; install Playwright into `~/.cache/pixie/playwright`; if Modern Web Guidance is installed, add the Baseline target line to `CLAUDE.md`. If it isn't installed, it mentions it once.
+
+If it finds no tokens and no components, it offers to write a minimal token set for you.
+
+**Rerunning it:** it checks what changed since the commit recorded in the inventory, in the scanned folders only. It refreshes just the entries for changed files, and reports what it added, updated or removed.
+
+**Limits:**
+
+- It never changes the `Annotations` or `Rubric overrides` sections. They're yours.
+- It never edits `CLAUDE.md`, writes a token file or installs anything without your yes.
+- Playwright goes into Pixie's own cache, never your repo's `package.json`.
+- The inventory matches a commit, so uncommitted changes in the scanned folders stop it until you commit them.
+
+**Output:** `docs/agents/design-system.md`. Commit it.
+
+Claude never runs this skill on its own. You must type `/pixie:design-setup`.
 
 ## diagnose
 
@@ -321,7 +351,7 @@ Sets up the current repo for Pixie. It's optional: without it, every skill uses 
 2. Asks whether to keep the default labels. If you say no, it asks for a label for each of the five roles. It points out existing labels that look like a match.
 3. Shows you the draft of `docs/agents/pixie-labels.md`, then writes it.
 4. Creates any chosen label the repo lacks, with a color and a description.
-5. Offers to run `km init` if there's no `.kimun.toml`, and `/pixie:create-verifier` if there's no `verify-*` skill.
+5. Offers to run `km init` if there's no `.kimun.toml`, and `/pixie:create-verifier` if there's no `verify-*` skill. If the repo has a UI and no design inventory, it mentions `/pixie:design-setup`.
 
 **Output:** `docs/agents/pixie-labels.md`. Commit it. `tackle`, `plan-task`, `poke` and `prune-tests` read it. When it's missing, they use the default labels.
 
