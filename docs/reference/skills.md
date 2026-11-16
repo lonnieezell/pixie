@@ -180,9 +180,9 @@ Catalogues the design system a repo already has, so design work reuses it instea
 | `error` | The failure state |
 | `loading` | The pending state |
 
-A preview missing any of them is rejected. A preview can add **interaction states**, such as an open menu: steps (`click`, `fill`, `press`, `hover`, `waitFor`) replayed on one of the six states before the screenshot.
+A preview missing any of them is rejected. A preview can add **interaction states**, such as an open menu: steps (`click`, `fill`, `press`, `hover`, `waitFor`) replayed on one of its states before the screenshot, at desktop width or the widths it names (a mobile nav at 390). It can also add more states, such as `disabled`, which are captured too.
 
-If you accept the offer, previews are kept and committed. With Storybook, they're stories, and no route is added. Without Storybook, it adds a dev-only `/__preview/<slug>?state=<name>` route, then proves a production build doesn't serve it: the code is left out of the build, or the URL returns 404. If you decline, `design-critique` builds the same structure for one run and removes it afterwards, checking `git status` is back to how it was.
+If you accept the offer, previews are kept and committed. With Storybook, they're stories, and no route is added. Without Storybook, it adds a dev-only `/__preview/<slug>?state=<name>` route, then proves a production build doesn't serve it: the code is left out of the build, or the URL returns 404. If you decline, `design-critique` builds the same structure (a stories file, or the route) for one run and removes it afterwards, checking `git status` is back to how it was. On Next, a preview URL returns 404 in production but its code is still compiled. With Vite and Inertia, the preview code is left out of the build.
 
 Fixtures come from the app's own JS factories when it has them, otherwise they're written by hand. They match the props or API resources production passes. They never use real data.
 

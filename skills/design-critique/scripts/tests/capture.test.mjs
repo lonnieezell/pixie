@@ -35,10 +35,18 @@ const MATRIX = {
   ),
   interactions: [{ name: "menu open", from: "typical", steps: [{ click: "button[aria-label=Menu]" }] }],
 };
+// A preview may declare states beyond the six, and an interaction may name the widths it exists at.
+const FULL_MATRIX = {
+  states: { ...MATRIX.states, disabled: "/__preview/order-list?state=disabled" },
+  interactions: [
+    ...MATRIX.interactions,
+    { name: "nav open", from: "typical", viewports: [390], steps: [{ click: "button[aria-label='Open menu']" }] },
+  ],
+};
 const matrixArgs = (m, base = "http://x/") => ["--url", base, "--out", "/tmp/run", "--matrix", JSON.stringify(m)];
 
 test("plans every matrix state at desktop, plus typical and overflow at mobile, each at its own URL", () => {
-  const o = parseOptions(matrixArgs(MATRIX, "http://localhost:5173"));
+  const o = parseOptions(matrixArgs(FULL_MATRIX, "http://localhost:5173"));
   assert.deepEqual(
     o.shots.map((s) => [s.file, s.url, s.steps.length]),
     [
@@ -50,16 +58,19 @@ test("plans every matrix state at desktop, plus typical and overflow at mobile, 
       ["shots/overflow-1280.png", "http://localhost:5173/__preview/order-list?state=overflow", 0],
       ["shots/error-1280.png", "http://localhost:5173/__preview/order-list?state=error", 0],
       ["shots/loading-1280.png", "http://localhost:5173/__preview/order-list?state=loading", 0],
+      ["shots/disabled-1280.png", "http://localhost:5173/__preview/order-list?state=disabled", 0],
       ["shots/menu-open-1280.png", "http://localhost:5173/__preview/order-list?state=typical", 1],
+      ["shots/nav-open-390.png", "http://localhost:5173/__preview/order-list?state=typical", 1],
     ],
   );
 });
 
 // Stands in for Playwright's browser and records what the page was asked to do. The page's evaluate calls
 // answer in order: the page height, loading axe, then axe's result.
-function fakeBrowser(calls) {
+function fakeBrowser(calls, previewError = null) {
   const answers = [900, undefined, { violations: [] }];
   const page = {
+    $: async () => previewError && { textContent: async () => previewError },
     goto: async (url) => (calls.push(["goto", url]), { status: () => 200 }),
     waitForLoadState: async () => {},
     click: async (selector) => calls.push(["click", selector]),
@@ -80,6 +91,16 @@ test("replays an interaction's steps on its base state's page before the screens
   ]);
 });
 
+test("fails a shot whose page is a preview error, served with a 200, instead of capturing it", async () => {
+  const o = parseOptions(matrixArgs(MATRIX));
+  const calls = [];
+  await assert.rejects(
+    captureShot(fakeBrowser(calls, "No preview named order-list"), o, o.shots[0], ""),
+    /No preview named order-list/,
+  );
+  assert.ok(!calls.some(([call]) => call === "screenshot"));
+});
+
 test("rejects bad options", () => {
   const cases = [
     [["--out", "/tmp/run"], /--url/],
@@ -95,6 +116,8 @@ test("rejects bad options", () => {
     [matrixArgs({ ...MATRIX, states: { ...MATRIX.states, error: undefined, loading: "" } }), /missing.*error, loading/],
     [matrixArgs({ ...MATRIX, interactions: [{ name: "menu open", from: "busy", steps: [] }] }), /busy/],
     [matrixArgs({ ...MATRIX, interactions: [{ name: "typical", from: "typical", steps: [] }] }), /same file/],
+    [matrixArgs({ ...MATRIX, interactions: [{ name: "a", from: "typical", viewports: [768], steps: [] }] }), /768/],
+    [[...matrixArgs(MATRIX), "--states", '[{"name":"default"}]'], /--states/],
   ];
   for (const [argv, message] of cases) {
     assert.throws(() => parseOptions(argv), message);

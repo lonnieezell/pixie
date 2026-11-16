@@ -41,27 +41,35 @@ function checkStates(states) {
 }
 
 // A preview's state matrix: { "states": { "empty": "/__preview/x?state=empty", ... }, "interactions": [
-// { "name": "menu open", "from": "typical", "steps": [...] }] }. Every state is shot at the widest viewport,
-// and typical and overflow at the others too. An interaction replays its steps on its base state's page.
+// { "name": "menu open", "from": "typical", "steps": [...], "viewports": [390] }] }. Every state is shot at
+// the widest viewport, and typical and overflow at the others too. Any state beyond the six is shot as well.
+// An interaction replays its steps on its base state's page, at the widest viewport unless it names others.
 function planMatrix(value, base, widths) {
   const m = readJson(value);
   const missing = REQUIRED_STATES.filter((s) => !(typeof m.states?.[s] === "string" && m.states[s]));
   if (missing.length) throw new Error(`the preview is missing required states: ${missing.join(", ")}`);
+  const names = [...REQUIRED_STATES, ...checkStates(Object.keys(m.states).filter((s) => !REQUIRED_STATES.includes(s))
+    .map((name) => ({ name }))).map((s) => s.name)];
   const desktop = Math.max(...widths);
   const url = (name) => new URL(m.states[name], base).href;
   const interactions = checkStates(m.interactions ?? []);
-  const unknown = interactions.find((i) => !REQUIRED_STATES.includes(i.from));
-  if (unknown) throw new Error(`interaction "${unknown.name}" starts from unknown state "${unknown.from}"`);
+  for (const i of interactions) {
+    if (!names.includes(i.from)) throw new Error(`interaction "${i.name}" starts from unknown state "${i.from}"`);
+    const other = (i.viewports ?? []).find((w) => !widths.includes(w));
+    if (other !== undefined) throw new Error(`interaction "${i.name}": viewport ${other} isn't one of ${widths}`);
+  }
   return [
-    ...REQUIRED_STATES.map((name) => ({
+    ...names.map((name) => ({
       name, url: url(name), steps: [], widths: ["typical", "overflow"].includes(name) ? widths : [desktop],
     })),
-    ...interactions.map((i) => ({ name: i.name, url: url(i.from), steps: i.steps ?? [], widths: [desktop] })),
+    ...interactions.map((i) => ({
+      name: i.name, url: url(i.from), steps: i.steps ?? [], widths: i.viewports ?? [desktop],
+    })),
   ];
 }
 
 export function parseOptions(argv) {
-  const o = { viewports: "390,1280", states: '[{"name":"default","steps":[]}]' };
+  const o = { viewports: "390,1280" };
   for (let i = 0; i < argv.length; i += 2) {
     const key = argv[i].replace(/^--/, "").replace(/-(.)/g, (_, c) => c.toUpperCase());
     o[key] = argv[i + 1];
@@ -74,9 +82,10 @@ export function parseOptions(argv) {
       throw new Error(`viewport ${w} must be a whole number from 1 to ${MAX_WIDTH}`);
     }
   }
+  if (o.matrix && o.states) throw new Error("use --matrix or --states, not both");
   const states = o.matrix
     ? planMatrix(o.matrix, o.url, widths)
-    : checkStates(readJson(o.states)).map((s) => ({ name: s.name, url: o.url, steps: s.steps ?? [], widths }));
+    : checkStates(readJson(o.states ?? '[{"name":"default","steps":[]}]')).map((s) => ({ name: s.name, url: o.url, steps: s.steps ?? [], widths }));
   o.shots = states.flatMap((s) =>
     s.widths.map((width) => ({
       file: `shots/${slug(s.name)}-${width}.png`,
@@ -126,6 +135,9 @@ export async function captureShot(browser, o, shot, axe) {
     const response = await page.goto(shot.url, { waitUntil: "load", timeout: LOAD_TIMEOUT_MS });
     if (response && response.status() >= 400) throw new Error(`HTTP ${response.status()} for ${shot.url}`);
     await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+    // The preview harness serves its errors (no such preview or state) with a 200, marked with this attribute.
+    const previewError = await page.$("[data-pixie-preview-error]");
+    if (previewError) throw new Error(`preview error: ${await previewError.textContent()}`);
     for (const step of shot.steps) await runStep(page, step);
     const height = Math.min(await page.evaluate(() => document.documentElement.scrollHeight), MAX_HEIGHT);
     await page.screenshot({ path: join(o.out, shot.file), fullPage: true, clip: { x: 0, y: 0, width: shot.viewport.width, height } });
@@ -168,7 +180,7 @@ async function main() {
   const axe = [];
   try {
     for (const shot of o.shots) {
-      const entry = { file: shot.file, state: shot.state, viewport: shot.viewport.width };
+      const entry = { file: shot.file, state: shot.state, viewport: shot.viewport.width, url: shot.url };
       try {
         const violations = await captureShot(browser, o, shot, tools.axe);
         manifest.shots.push(entry);

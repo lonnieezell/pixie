@@ -92,7 +92,7 @@ Keep those whose occurrences span at least 2 files. Compare parent-child structu
 
 **Layout shells.** React: layout components and Next `layout.tsx` files. Blade: `@extends('layouts.…')` targets and `<x-…-layout>` components. CI4: `$this->extend('…')` targets with `renderSection`. The usage counts come from the grep above.
 
-**Preview surface.** Look for `.storybook/`, then a `/__preview` route. A `/__preview` route already there is `harness (/__preview)`. Anything else is `temporary` until the user accepts the preview harness offer in step 7.
+**Preview surface.** Look for `.storybook/`, then a `/__preview` route. A `/__preview` route already there is `harness (/__preview)`. With `.storybook/` and an **Install preview harness** row that says `yes: storybook`, it's `storybook (.storybook)` with the launch command, so a rescan keeps an accepted harness. Anything else is `temporary` until the user accepts the preview harness offer in step 7.
 
 **Launch fallback.** If there's no `.claude/skills/verify-*/`, propose a launch command from the repo's own scripts (`npm run dev`, `php artisan serve`, `php spark serve`) and the URL it serves, and confirm it in step 5. With a verifier, record `none`: design skills find the verifier themselves when they run.
 
