@@ -208,7 +208,7 @@ Open the PR in your browser. Look at the commits. Each commit body includes the 
 /pixie:babysit
 ```
 
-`babysit` works through every open PR in the repo, oldest first. Here there's only one. For each PR, it:
+`babysit` works through every open PR you opened in the repo, oldest first. Here there's only one. For each PR, it:
 
 1. Fixes merge conflicts, if any.
 2. Answers comments from review bots, if any.

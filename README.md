@@ -130,7 +130,7 @@ From here, you can run `/pixie:untangle` to have Claude pick the top hotspot and
 
 | Skill         | What it does                                                | Example                                            | Needs                             |
 | ------------- | ----------------------------------------------------------- | -------------------------------------------------- | --------------------------------- |
-| `babysit`     | Brings open PRs to a mergeable state, oldest first          | `/pixie:babysit`                                   | `gh`                              |
+| `babysit`     | Brings your open PRs to a mergeable state, oldest first     | `/pixie:babysit`                                   | `gh`                              |
 | `catch`       | Turns Sentry and Coralogix errors into issues               | `/pixie:catch`                                     | `gh`, a Sentry or Coralogix token |
 | `checkup`     | Audits for security, performance and bugs, then files issues | `/pixie:checkup` or `/pixie:checkup scores`       | `gh` to file issues               |
 | `code-health` | Measures code health and guides refactoring                 | `/pixie:code-health did my changes make it worse?` | `km`                              |

@@ -8,7 +8,7 @@ New to Pixie? Start with the [tutorial](../tutorial/first-issue-to-pr.md) instea
 
 | Skill | What it does | Example | Needs | Claude can start it on its own? |
 |---|---|---|---|---|
-| `babysit` | Brings open PRs to a mergeable state, oldest first | `/pixie:babysit` | `gh` | No |
+| `babysit` | Brings your open PRs to a mergeable state, oldest first | `/pixie:babysit` | `gh` | No |
 | `catch` | Turns Sentry and Coralogix errors into `needs-triage` issues | `/pixie:catch` | `gh`, a Sentry or Coralogix token | No |
 | `checkup` | Audits the codebase for security, performance and bugs, scores it, and files issues | `/pixie:checkup` or `/pixie:checkup scores` | `gh` to file issues; `km` optional | No |
 | `code-health` | Measures code health and guides refactoring | `/pixie:code-health did my changes make it worse?` | `km` | Yes |
@@ -34,7 +34,7 @@ For the labels, branches, and files each skill creates, see [Labels, branches, a
 
 ## babysit
 
-Works through a repo's open pull requests one at a time, oldest first. For each PR, it:
+Works through **your own** open pull requests in a repo one at a time, oldest first. PRs opened by anyone else, including bots, are never touched. For each PR, it:
 
 1. Fixes merge conflicts.
 2. Answers review-bot comments. It checks each claim against the code first, then fixes it or explains why not.
@@ -43,7 +43,7 @@ Works through a repo's open pull requests one at a time, oldest first. For each 
 **Arguments (all optional):**
 
 - `owner/repo`. Defaults to the repo in the current folder.
-- A PR number to start at.
+- A PR number to start at. It must be one of your PRs.
 - How many PRs to handle. The default is 5.
 
 **Before it starts:** your working tree must be clean. It stops if you have uncommitted changes, and it returns you to your starting branch when it's done.
@@ -52,10 +52,10 @@ Works through a repo's open pull requests one at a time, oldest first. For each 
 
 - It never merges, approves, or closes a PR. It never changes branch protection.
 - It never resolves or argues with a human reviewer's comment. It also leaves alone any bot thread a human has commented in.
-- It skips drafts and PRs opened by bots such as Dependabot or Renovate.
+- It skips drafts.
 - It handles at most two rounds of bot review per PR. Later bot comments go in the report.
 - It only waits for bot reviews on PRs that bots have reviewed before. It skips the second round if the first round pushed nothing.
-- It stops and reports when a PR needs a human decision. Examples: a human asked for changes, the fix would change behavior, or the PR comes from a fork it can't push to.
+- It stops and reports when a PR needs a human decision. Examples: a human asked for changes, or the fix would change behavior.
 - It's safe to run again. It doesn't reply twice to a thread it already answered.
 
 **Output:** a table of each PR's final state. The states are *Ready — awaiting approval*, *Ready*, *Waiting on human*, or *Blocked*.
