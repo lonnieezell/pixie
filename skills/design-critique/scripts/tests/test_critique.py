@@ -1,3 +1,4 @@
+import json
 import sys
 import tempfile
 import unittest
@@ -68,6 +69,56 @@ class TokenGateTest(unittest.TestCase):
             (root / "page.tsx").write_text('<p className="text-[#333]" />\n')
             hits = C.token_gate(root, INVENTORY, ["resources/css/app.css", "page.tsx"])
             self.assertEqual([(h["file"], h["match"]) for h in hits], [("page.tsx", "text-[#333]")])
+
+
+RUBRIC = """# Rubric
+
+| ID | Check | Typical severity |
+|---|---|---|
+| `type.hierarchy` | One clear primary heading per screen. | S2 |
+| `type.line-length` | Body text lines stay under about 80 characters. | S3 |
+"""
+
+EXTRA = """| `wdg.focus-visible` | Focus rings are visible on every control. | S2 |
+"""
+
+MANIFEST = {"url": "http://localhost:8080/orders", "shots": [
+    {"file": "shots/default-390.png", "state": "default", "viewport": 390},
+    {"file": "shots/default-1280.png", "state": "default", "viewport": 1280},
+]}
+
+
+def make_run(root):
+    run = Path(root) / "run"
+    (run / "shots").mkdir(parents=True)
+    (run / "manifest.json").write_text(json.dumps(MANIFEST))
+    (run / "axe.json").write_text("[]")
+    for shot in MANIFEST["shots"]:
+        (run / shot["file"]).write_bytes(b"\x89PNG")
+    (run / "page.tsx").write_text("export default function Page() {}")
+    neighbour = Path(root) / "list-1280.png"
+    neighbour.write_bytes(b"\x89PNG")
+    return run, neighbour
+
+
+class BriefTest(unittest.TestCase):
+    def test_critic_folder_holds_only_screenshots_rubric_and_context(self):
+        with tempfile.TemporaryDirectory() as d:
+            run, neighbour = make_run(d)
+            critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, [neighbour])
+            files = sorted(str(p.relative_to(critic)) for p in critic.rglob("*") if p.is_file())
+            self.assertEqual(files, [
+                "context.md", "manifest.json", "neighbours/list-1280.png", "rubric.md",
+                "shots/default-1280.png", "shots/default-390.png",
+            ])
+            rubric = (critic / "rubric.md").read_text()
+            self.assertIn("`type.hierarchy`", rubric)
+            self.assertIn("`wdg.focus-visible`", rubric)
+            self.assertNotIn("`type.line-length`", rubric)
+            context = (critic / "context.md").read_text()
+            self.assertIn("Colours come from tokens.", context)
+            self.assertIn("Dense tables are fine on admin screens.", context)
+            self.assertNotIn("status:", context)
 
 
 class AxeGateTest(unittest.TestCase):
