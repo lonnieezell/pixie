@@ -87,6 +87,7 @@ python3 SCRIPTS/critique.py gates --run "RUN" --files FILE...
 It writes `RUN/gates.json`:
 - `axe`: one entry per axe violation per screenshot, most severe first
 - `tokens`: every raw hex colour and Tailwind arbitrary value (`text-[#333]`, `p-[13px]`) in those files, with `file:line`. The token source files listed in the inventory's `## Tokens` are skipped.
+- `skipped`: any `--files` path that couldn't be read. Fix the path and run the gate again, or list it under **Not checked**.
 
 These go in the report ahead of the critic's findings. The token check is a pattern match, so look at each hit's line before reporting it. Drop any that isn't a colour or a size (an issue number in a comment such as `Fixes: #123`, an anchor such as `href: "#add"`, a selector such as `:not(#abc)`). A raw value the inventory's `## Rules` explicitly allows isn't a failure: note it as allowed.
 
