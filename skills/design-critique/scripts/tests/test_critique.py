@@ -45,7 +45,10 @@ class TokenGateTest(unittest.TestCase):
         cases = [
             ('<p class="text-[#333]">', ["text-[#333]"]),
             ('<div class="p-[13px] mt-4">', ["p-[13px]"]),
-            ('<div class="md:w-[calc(100%-2rem)]">', ["md:w-[calc(100%-2rem)]"]),
+            ('<div class="md:w-[calc(100%-2rem)]">', ["w-[calc(100%-2rem)]"]),
+            ('<div class="data-[state=open]:bg-accent group-[.is-open]:block">', []),
+            ('<div class="supports-[display:grid]:grid">', []),
+            ('<div class="data-[state=open]:w-[10px] md:-mt-[3px]">', ["w-[10px]", "-mt-[3px]"]),
             ("color: #4F46E5;", ["#4F46E5"]),
             ("border: 1px solid #fff", ["#fff"]),
             ("background: #11223344;", ["#11223344"]),
@@ -74,7 +77,7 @@ class TokenGateTest(unittest.TestCase):
             (root / "resources/css").mkdir(parents=True)
             (root / "resources/css/app.css").write_text(":root { --primary: #4f46e5; }\n")
             (root / "page.tsx").write_text('<p className="text-[#333]" />\n')
-            hits = C.token_gate(root, INVENTORY, ["resources/css/app.css", "page.tsx"])
+            hits = C.token_gate(root, INVENTORY, ["./resources/css/app.css", "page.tsx", "gone.tsx", "resources"])
             self.assertEqual([(h["file"], h["match"]) for h in hits], [("page.tsx", "text-[#333]")])
 
 
@@ -130,6 +133,14 @@ class BriefTest(unittest.TestCase):
             self.assertIn("Dense tables are fine on admin screens.", context)
             self.assertNotIn("status:", context)
 
+    def test_rerunning_brief_rebuilds_the_folder(self):
+        with tempfile.TemporaryDirectory() as d:
+            run, neighbours = make_run(d)
+            C.brief(run, INVENTORY, RUBRIC, EXTRA, neighbours)
+            critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, [])
+            self.assertFalse((critic / "neighbours").exists())
+            self.assertTrue((critic / "shots" / "default-390.png").exists())
+
 
 def finding(**over):
     f = {
@@ -160,12 +171,19 @@ class ReviewFindingsTest(unittest.TestCase):
             ({"screenshot": "neighbours/1-default-1280.png"}, "screenshot not captured"),
             ({"state": "loading"}, "state does not match the screenshot"),
             ({"viewport": 1280}, "viewport does not match the screenshot"),
+            ({"rubric": ["type.hierarchy"]}, "rubric must be text"),
+            ({"viewport": "390"}, "viewport must be a number"),
         ]
         for over, reason in cases:
             with self.subTest(over=over):
                 result = self.review([finding(**over)])
                 self.assertEqual(result["accepted"], [])
                 self.assertEqual([r["reason"] for r in result["rejected"]], [reason])
+
+    def test_rejects_a_reply_that_is_not_a_list_of_findings(self):
+        for reply in ({"findings": [finding()]}, ["not a finding"]):
+            with self.subTest(reply=reply), self.assertRaises(ValueError):
+                self.review(reply)
 
     def test_override_suppresses_matching_finding(self):
         result = self.review([finding(rubric="type.line-length")])

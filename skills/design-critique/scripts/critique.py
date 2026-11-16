@@ -2,12 +2,15 @@
 """Scripted gates and critic plumbing for /design-critique."""
 import argparse
 import json
+import os
 import re
 import shutil
+import sys
 from pathlib import Path
 
-# A Tailwind arbitrary value, with any variant prefixes: text-[#333], md:w-[calc(100%-2rem)].
-ARBITRARY = re.compile(r"(?<![\w\[:-])(?:[a-z][a-z0-9-]*:)*-?[a-z][a-z0-9-]*-\[[^\]\s]+\]")
+# A Tailwind arbitrary value: text-[#333], -mt-[3px]. Not an arbitrary variant such as data-[state=open]:,
+# which is followed by `:`.
+ARBITRARY = re.compile(r"(?<![\w\[-])-?[a-z][a-z0-9-]*-\[[^\]\s]+\](?!:)")
 # Colours live in property values (`color: #333`, `{ text: '#333' }`), so hex is only looked for after a `:`,
 # up to the end of the declaration. Text (`<td>#1001</td>`), selectors and `href="#id"` never match.
 # `[#333]` is left to ARBITRARY, and `/#abc` is a URL fragment.
@@ -56,6 +59,7 @@ def brief(run, inventory, rubric, extra, neighbours):
     """Build the critic's folder: screenshots, manifest, rubric and house rules. Never code."""
     run = Path(run)
     critic = run / "critic"
+    shutil.rmtree(critic, ignore_errors=True)
     manifest = json.loads((run / "manifest.json").read_text())
     for shot in manifest["shots"]:
         (critic / shot["file"]).parent.mkdir(parents=True, exist_ok=True)
@@ -85,6 +89,11 @@ def rejection(f, ids, shots):
     for field in REQUIRED:
         if f.get(field) in (None, ""):
             return f"missing {field}"
+    for field in REQUIRED:
+        if field != "viewport" and not isinstance(f[field], str):
+            return f"{field} must be text"
+    if not isinstance(f["viewport"], int) or isinstance(f["viewport"], bool):
+        return "viewport must be a number"
     if f["severity"] not in SEVERITIES:
         return "bad severity"
     if len(str(f["observed"]).split()) < MIN_OBSERVED_WORDS:
@@ -107,9 +116,11 @@ def review_findings(critic, inventory, findings):
     ids = rubric_ids((critic / "rubric.md").read_text())
     shots = {s["file"]: s for s in json.loads((critic / "manifest.json").read_text())["shots"]}
     drop = dropped(inventory)
+    if not isinstance(findings, list) or not all(isinstance(f, dict) for f in findings):
+        raise ValueError("the critic's reply must be a JSON array of finding objects")
     result = {"accepted": [], "rejected": [], "suppressed": []}
     for f in findings:
-        if f.get("rubric") in drop:
+        if isinstance(f.get("rubric"), str) and f["rubric"] in drop:
             result["suppressed"].append(f)
         elif reason := rejection(f, ids, shots):
             result["rejected"].append({"finding": f, "reason": reason})
@@ -136,11 +147,14 @@ def axe_findings(report):
 
 
 def token_gate(root, inventory, files):
-    skip = token_files(inventory)
+    skip = {os.path.normpath(p) for p in token_files(inventory)}
     hits = []
-    for rel in files:
-        if rel not in skip:
-            hits += token_hits(rel, (Path(root) / rel).read_text(errors="replace"))
+    for rel in map(os.path.normpath, files):
+        path = Path(root) / rel
+        if not path.is_file():
+            print(f"skipped {rel}: not a file", file=sys.stderr)
+        elif rel not in skip:
+            hits += token_hits(rel, path.read_text(errors="replace"))
     return hits
 
 

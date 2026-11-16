@@ -88,7 +88,7 @@ It writes `RUN/gates.json`:
 - `axe`: one entry per axe violation per screenshot, most severe first
 - `tokens`: every raw hex colour and Tailwind arbitrary value (`text-[#333]`, `p-[13px]`) in those files, with `file:line`. The token source files listed in the inventory's `## Tokens` are skipped.
 
-These go in the report ahead of the critic's findings. A raw value the inventory's `## Rules` explicitly allows isn't a failure: note it as allowed.
+These go in the report ahead of the critic's findings. The token check is a pattern match, so look at each hit's line before reporting it. Drop any that isn't a colour or a size (an issue number in a comment such as `Fixes: #123`, an anchor such as `href: "#add"`, a selector such as `:not(#abc)`). A raw value the inventory's `## Rules` explicitly allows isn't a failure: note it as allowed.
 
 ## 6. Critique
 
@@ -98,8 +98,10 @@ These go in the report ahead of the critic's findings. A raw value the inventory
 
 ```bash
 python3 SCRIPTS/critique.py brief --run "RUN" --rubric "${CLAUDE_SKILL_DIR}/references/rubric.md" \
-  [--extra RUN/extra-rubric.md] --neighbours RUN/neighbour-*/shots/*.png
+  [--extra RUN/extra-rubric.md] [--neighbours RUN/neighbour-*/shots/*.png]
 ```
+
+Leave out `--neighbours` when no neighbour was captured.
 
 It writes `RUN/critic/` and prints its path. The folder holds only the screenshots, the manifest, the rubric (the core rubric plus the extra rows) and `context.md` (the inventory's Rules and Rubric overrides). No source code goes in, and nothing else may be added to it. Don't view the screenshots yourself: the critic does, and each image costs tokens.
 

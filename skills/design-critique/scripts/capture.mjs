@@ -5,7 +5,7 @@
 //   node capture.mjs --url URL --out DIR [--viewports 390,1280] [--states JSON|FILE] [--storage-state FILE]
 //
 // Exit codes: 0 captured (per-state errors are in the manifest), 1 bad options or the page failed to load,
-// 3 Playwright or axe-core missing from the cache. PIXIE_PLAYWRIGHT_DIR points at another cache, for testing.
+// 3 Playwright, axe-core or Chromium missing from the cache. PIXIE_PLAYWRIGHT_DIR points at another cache, for testing.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
@@ -15,6 +15,7 @@ import { pathToFileURL } from "node:url";
 const MAX_WIDTH = 1280;
 const MAX_HEIGHT = 4000;
 const STEP_TIMEOUT_MS = 10000;
+const LOAD_TIMEOUT_MS = 60000;
 const ACTIONS = ["click", "fill", "press", "hover", "waitFor"];
 const CACHE =process.env.PIXIE_PLAYWRIGHT_DIR || join(homedir(), ".cache", "pixie", "playwright");
 
@@ -23,7 +24,12 @@ const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g
 // States come inline as JSON or from a file: [{ "name": "menu open", "steps": [{ "click": "SELECTOR" }] }].
 function parseStates(value) {
   const states = JSON.parse(value.trim().startsWith("[") ? value : readFileSync(value, "utf8"));
+  const seen = new Map();
   for (const s of states) {
+    const name = slug(String(s.name ?? ""));
+    if (!name) throw new Error(`every state needs a name with letters or digits: ${JSON.stringify(s)}`);
+    if (seen.has(name)) throw new Error(`states "${seen.get(name)}" and "${s.name}" would save to the same file`);
+    seen.set(name, s.name);
     const unknown = (s.steps ?? []).map((step) => Object.keys(step)[0]).find((a) => !ACTIONS.includes(a));
     if (unknown) throw new Error(`state "${s.name}": unknown step ${unknown}; use ${ACTIONS.join(", ")}`);
   }
@@ -75,12 +81,14 @@ async function captureShot(browser, o, shot, axe) {
   const context = await browser.newContext({
     viewport: shot.viewport,
     deviceScaleFactor: 1,
+    bypassCSP: true, // axe is injected as an inline script, which a strict CSP would block
     ...(o.storageState ? { storageState: o.storageState } : {}),
   });
   context.setDefaultTimeout(STEP_TIMEOUT_MS);
   try {
     const page = await context.newPage();
-    const response = await page.goto(o.url, { waitUntil: "load" });
+    // A dev server may compile the route on its first request, so loading gets longer than a step.
+    const response = await page.goto(o.url, { waitUntil: "load", timeout: LOAD_TIMEOUT_MS });
     if (response && response.status() >= 400) throw new Error(`HTTP ${response.status()} for ${o.url}`);
     await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
     for (const step of shot.steps) await runStep(page, step);
@@ -110,7 +118,13 @@ async function main() {
     process.exit(3);
   }
   mkdirSync(join(o.out, "shots"), { recursive: true });
-  const browser = await tools.chromium.launch();
+  let browser;
+  try {
+    browser = await tools.chromium.launch();
+  } catch (e) {
+    console.error(`Chromium won't start from ${CACHE}/browsers: ${e.message.split("\n")[0]}`);
+    process.exit(3);
+  }
   const manifest = { url: o.url, capturedAt: new Date().toISOString(), shots: [], errors: [] };
   const axe = [];
   try {
