@@ -14,6 +14,7 @@ New to Pixie? Start with the [tutorial](../tutorial/first-issue-to-pr.md) instea
 | `code-health` | Measures code health and guides refactoring | `/pixie:code-health did my changes make it worse?` | `km` | Yes |
 | `create-verifier` | Writes a project skill that drives your app like a user | `/pixie:create-verifier` | — | No |
 | `design-setup` | Catalogues the repo's design system for design work | `/pixie:design-setup` | — | No |
+| `design-critique` | Critiques one screen of the running app from screenshots | `/pixie:design-critique /orders` | Node and Playwright, or a browser MCP; `gh` to file issues (optional) | No |
 | `diagnose` | Finds a bug's root cause, proves it, then fixes it | `/pixie:diagnose checkout total is wrong` | — | Only when asked by name |
 | `how` | Explains how part of the codebase works | `/pixie:how does authentication work` | — | Yes |
 | `huh` | Restates Claude's last reply in plain language | `/pixie:huh` | — | No |
@@ -166,7 +167,7 @@ Catalogues the design system a repo already has, so design work reuses it instea
 4. Finds markup repeated across views, with a canonical example, a count and a suggestion for a component to extract. It only suggests. It never refactors.
 5. Sets the Baseline target from `browserslist`, or a Baseline line in `CLAUDE.md` or `AGENTS.md`. Otherwise it asks, with Widely available as the default.
 6. Shows a summary, asks only what it couldn't work out, then writes the inventory.
-7. Makes each offer once and records your answer in the inventory: run `create-verifier` if there's no verification skill; install Playwright into `~/.cache/pixie/playwright`; if Modern Web Guidance is installed, add the Baseline target line to `CLAUDE.md`. If it isn't installed, it mentions it once.
+7. Makes each offer once and records your answer in the inventory: run `create-verifier` if there's no verification skill; install Playwright and axe-core into `~/.cache/pixie/playwright`; if Modern Web Guidance is installed, add the Baseline target line to `CLAUDE.md`. If it isn't installed, it mentions it once.
 
 If it finds no tokens and no components, it offers to write a minimal token set for you.
 
@@ -182,6 +183,33 @@ If it finds no tokens and no components, it offers to write a minimal token set 
 **Output:** `docs/agents/design-system.md`. Commit it.
 
 Claude never runs this skill on its own. You must type `/pixie:design-setup`.
+
+## design-critique
+
+Gives a ranked, evidence-backed critique of one existing screen, judged from screenshots of the running app. Name a route, a URL or a component, plus any states you want checked ("with the menu open").
+
+**How it works:**
+
+1. Gets the app running. With a verification skill, its Launch, Doctor, sign-in and Cleanup sections run the app, unless `liveVerify.design` is `false` (see [Live checks](live-checks.md)). Otherwise it recommends `create-verifier`, then uses the launch fallback from the design inventory, or a command you confirm.
+2. Captures the screen at 390 and 1280 wide, in each state you named, plus 1–2 neighbouring screens for comparison. Screenshots are never wider than 1280px.
+3. Runs two scripted gates: axe accessibility checks on every screenshot, and a check for raw hex colours and Tailwind arbitrary values (`text-[#333]`) in the files that render the screen. The inventory's token files are skipped.
+4. Hands the screenshots to the `design-critic` agent, with the rubric and the inventory's house rules. The critic never sees the code.
+5. Keeps only findings that cite a rubric item, a screenshot, a state and a width with a concrete observation. It drops vague ones, and suppresses any finding for a rubric item your overrides drop.
+6. Saves a dated report and asks once what to do: fix the top few, file them as issues, or leave them.
+
+**Rubric:** the core rubric ships with the skill (layout, hierarchy, type, colour, consistency, states, interaction, content). If the `frontend-design` or `web-design-guidelines` skills are installed, their checks are added. Your inventory's `## Rubric overrides` win: a ``- drop: `ID` `` line suppresses findings for that item, and any other line is a house rule the critic follows.
+
+**Capture tools:** Playwright and axe-core, in Pixie's own cache at `~/.cache/pixie/playwright`, the same install `design-setup` offers. It asks before installing them, and never touches your repo's `package.json` or lockfile. It checks they're unchanged after capture. With no Node, it uses a connected browser MCP, without the axe gate. With no browser at all, it says visual critique is unavailable and stops.
+
+**Limits:**
+
+- Nothing is edited or filed until you choose. Fixes to CSS and tokens are made directly. Behaviour changes go through `tdd`.
+- It critiques what's on screen. It can't judge behaviour it can't capture as a state.
+- Filing needs `gh`.
+
+**Output:** `docs/design/critiques/YYYY-MM-DD-SLUG.md`, with screenshots in a folder beside it. The first run asks whether to gitignore the screenshots, and records your answer in the inventory.
+
+Claude never runs this skill on its own. You must type `/pixie:design-critique`.
 
 ## diagnose
 

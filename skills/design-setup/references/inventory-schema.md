@@ -131,8 +131,8 @@ A refresh re-infers a changed component's status only when it has no annotation.
 
 **Rules.** House conventions a new screen must follow, each with its evidence. Don't invent rules the code doesn't show.
 
-**Setup offers.** One row per offer, with the answer and the date. Row names and when each is written are in the skill's step 7. An offer with a row is never asked again.
+**Setup offers.** One row per offer, with the answer and the date. Row names and when each is written are in the skill's step 7. `/design-critique` adds a **Gitignore critique screenshots** row the first time it asks. An offer with a row is never asked again.
 
 **Annotations.** Free-form notes for design skills. A line in the form ``- status: `Name` = preferred`` or ``- status: `Name` = legacy`` sets that component's status (see Components).
 
-**Rubric overrides.** Free-form. Later design skills read it to add, drop or reweight critique rules for this repo.
+**Rubric overrides.** Changes to the design critique rubric for this repo. A line in the form ``- drop: `RUBRIC-ID` `` (any reason after it) makes `/design-critique` suppress any finding that cites that rubric item. Any other line is a house rule the critic follows, and it wins over the core rubric.

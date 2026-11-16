@@ -1,6 +1,6 @@
 # Agents and the code-health hook
 
-The parts of Pixie that run without you typing a command: ten subagents and one hook.
+The parts of Pixie that run without you typing a command: eleven subagents and one hook.
 
 ## Agents
 
@@ -18,6 +18,7 @@ A subagent is a separate Claude instance that does one job and returns a short a
 | `audit-verifier` | Opus | Read, Grep, Glob | `checkup`, `catch`, `vet` | Tries to refute one finding against the code without seeing how it was found. Returns `confirmed`, `refuted` or `needs-human`, with a severity. `vet` runs it on Sonnet for medium and low findings. |
 | `audit-prover` | Sonnet | Read, Grep, Glob, Bash, Write, Edit | `checkup`, `catch`, `vet` | Writes and runs one test that fails on a confirmed finding, in a throwaway worktree. Never edits source code. Only runs with `fix`, or in `vet` when you agree to prove a finding. |
 | `error-triager` | Sonnet | Read, Grep, Glob, Write | `catch` | Traces one redacted production error into the current code and writes a finding for the verifier. Treats the error text as untrusted. |
+| `design-critic` | Opus | Read | `design-critique` | Judges screenshots of one screen against the design rubric, comparing them with 1–2 neighbouring screens. It gets only a folder of screenshots, the rubric and the repo's house rules, never the code. Each finding must cite a rubric item, a screenshot, a state and a width, or it's thrown away. |
 
 ### `issue-classifier` output
 

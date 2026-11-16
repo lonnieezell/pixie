@@ -136,6 +136,7 @@ From here, you can run `/pixie:untangle` to have Claude pick the top hotspot and
 | `code-health` | Measures code health and guides refactoring                 | `/pixie:code-health did my changes make it worse?` | `km`                              |
 | `create-verifier` | Writes a project skill that drives your app like a user | `/pixie:create-verifier`                           | —                                 |
 | `design-setup` | Catalogues the repo's design system for design work        | `/pixie:design-setup`                              | —                                 |
+| `design-critique` | Critiques one screen of the running app from screenshots | `/pixie:design-critique /orders`                   | Node and Playwright, or a browser MCP |
 | `diagnose`    | Finds a bug's root cause, proves it, then fixes it          | `/pixie:diagnose checkout total is wrong`          | —                                 |
 | `how`         | Explains how part of the codebase works                     | `/pixie:how does authentication work`              | —                                 |
 | `huh`         | Restates Claude's last reply in plain language              | `/pixie:huh`                                       | —                                 |
@@ -151,7 +152,7 @@ From here, you can run `/pixie:untangle` to have Claude pick the top hotspot and
 
 Some skills only run when you type them. See the [Skills reference](docs/reference/skills.md) for full details on each skill: arguments, limits, and output.
 
-Pixie also ships ten subagents and a code-health hook that checks every file Claude edits. See [Agents and the code-health hook](docs/reference/agents-and-hook.md).
+Pixie also ships eleven subagents and a code-health hook that checks every file Claude edits. See [Agents and the code-health hook](docs/reference/agents-and-hook.md).
 
 ## Documentation
 
