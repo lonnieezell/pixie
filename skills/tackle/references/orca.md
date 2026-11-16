@@ -22,12 +22,12 @@ Leave out `--workspace-status` when the status isn't changing. If a checkpoint f
 | When | Status | First line |
 |---|---|---|
 | Claimed (step 2) | `in-progress` | `claimed #N; classifying` |
-| Classified (step 3) | — | `tier T (difficulty), route ROUTE; starting fix` or `…; starting TDD` |
+| Classified (step 3) | — | `tier T (difficulty, RISK risk), route ROUTE; starting fix` or `…; starting TDD` |
 | Root cause confirmed or ruled out (diagnose route) | — | `confirmed/refuted: HYPOTHESIS (FILE); next step` |
 | Moving from fix to verification, or after each meaningful TDD slice | — | `SLICE DONE (FILES); next: NEXT SLICE or review` |
 | Lint done, entering review (step 5) | `in-review` | `implementation complete, tests green; running simplify, then code review (EFFORT)` |
-| Code review complete | — | `code review: X fixed, Y not changed; final checks` (or `running security review` for tier 3) |
-| Security review complete (tier 3) | — | `security review: RESULT; final checks` |
+| Code review complete | — | `code review: X fixed, Y not changed; final checks` (or `running security review` for `high` risk) |
+| Security review complete (`high` risk) | — | `security review: RESULT; final checks` |
 | PR opened (step 6) | `completed` | `opened PR #M for #N; ready for human review` |
 | Stopped early | `completed` | `blocked: REASON; needs WHAT` |
 

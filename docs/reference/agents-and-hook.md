@@ -8,7 +8,7 @@ A subagent is a separate Claude instance that does one job and returns a short a
 
 | Agent | Model | Tools | Used by | What it does |
 |---|---|---|---|---|
-| `issue-classifier` | Haiku | Read | `tackle` | Rates an issue's difficulty, route, and kind. It sees the issue text only, not the code. |
+| `issue-classifier` | Haiku | Read | `tackle` | Rates an issue's difficulty, risk, route, and kind. It sees the issue text only, not the code. |
 | `ci-log-triage` | Haiku | Bash, Read, Grep | `babysit` | Reads a failed CI run's logs and returns only the failing tests, errors, and files. |
 | `review-thread-verifier` | Sonnet | Read, Grep, Glob | `babysit` | Checks one review-bot comment against the code. Returns `valid`, `invalid`, or `needs-human` with a reason. `babysit` runs one per thread when a PR has more than five. |
 | `coverage-analyzer` | Sonnet | Bash, Read, Write, Glob, Grep | `prune-tests` | Writes and runs a script over per-test coverage and mutation files. Returns the subsumed tests, groups of tests that cover exactly the same lines, the only tests covering a line, and the only tests that catch a mutant. Reads PHP, JS/TS and Python coverage formats, and one lcov file per test for Rust. |
@@ -23,13 +23,17 @@ A subagent is a separate Claude instance that does one job and returns a short a
 
 `tackle` maps the classifier's difficulty to a tier. The tier sets how hard the review is.
 
-| Tier | Difficulty | Code-review effort | Security review |
-|---|---|---|---|
-| 1 | trivial, small | low | no |
-| 2 | medium | medium | no |
-| 3 | large, hard | high | yes |
+| Tier | Difficulty | Code-review effort |
+|---|---|---|
+| 1 | trivial, small | low |
+| 2 | medium | medium |
+| 3 | large, hard | high |
 
-`tackle` raises the tier by one if the work touches auth, permissions, payments, migrations, or data integrity. It also raises it if the work turned out bigger than rated. It never lowers it.
+Risk is rated separately, as `normal` or `high`. It's `high` when the work likely touches auth, permissions, routes, payments, secrets, migrations, or data integrity. A `high`-risk issue gets a security review at any tier.
+
+`tackle` sets the risk to `high` if the work touches auth, permissions, payments, migrations, or data integrity, even when the classifier didn't flag it. It raises the tier by one if the work turned out bigger than rated. It never lowers either one.
+
+`checkup` records a `high`-risk finding as tier 3, so the default `autoFix.maxTier` of 2 keeps it out of auto-fix.
 
 The route decides which skill does the work:
 

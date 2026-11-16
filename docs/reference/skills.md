@@ -339,8 +339,8 @@ Takes one GitHub issue from `ready-for-agent` to an open pull request. It:
 
 1. Picks the issue. With no number, it offers the oldest ready issues. If an earlier branch or PR exists for the issue, it asks whether to continue from it.
 2. Creates an `agent/<number>-<slug>` branch from the remote default branch, then claims the issue with the `agent-working` label.
-3. Rates the issue's difficulty and picks a route: `diagnose` for a bug with an unknown cause, `implement` (through `tdd`) for everything else.
-4. Does the work, then runs lint, simplify, and code review. Hard issues also get a security review. If the repo has a verification skill, it then drives the changed features in the running app.
+3. Rates the issue's difficulty and risk, and picks a route: `diagnose` for a bug with an unknown cause, `implement` (through `tdd`) for everything else.
+4. Does the work, then runs lint, simplify, and code review. High-risk issues also get a security review. If the repo has a verification skill, it then drives the changed features in the running app.
 5. Opens the PR and swaps the label to `agent-pr`.
 
 **Arguments (optional):** an issue number, such as `/pixie:tackle 142`, and `unattended` for scheduled runs. With `unattended`, it needs a number and never asks: wherever it would ask, it stops before claiming the issue and says why.
