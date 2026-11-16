@@ -8,9 +8,11 @@ from pathlib import Path
 
 # A Tailwind arbitrary value, with any variant prefixes: text-[#333], md:w-[calc(100%-2rem)].
 ARBITRARY = re.compile(r"(?<![\w\[:-])(?:[a-z][a-z0-9-]*:)*-?[a-z][a-z0-9-]*-\[[^\]\s]+\]")
-# Not after `&` (an entity), and not right after `>` or before `<`: that's text, such as <td>#1001</td>.
-HEX = re.compile(r"(?<![&\w#>])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w<-])")
-LINK_ATTR = re.compile(r"(?:href|to)=[\"']$")
+# Colours live in property values (`color: #333`, `{ text: '#333' }`), so hex is only looked for after a `:`,
+# up to the end of the declaration. Text (`<td>#1001</td>`), selectors and `href="#id"` never match.
+# `[#333]` is left to ARBITRARY, and `/#abc` is a URL fragment.
+VALUE = re.compile(r":([^;{}<>\n]*)")
+HEX = re.compile(r"(?<![\w#&/\[])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w-])")
 
 
 def section(inventory, name):
@@ -27,13 +29,10 @@ def token_files(inventory):
 def token_hits(path, text):
     hits = []
     for number, line in enumerate(text.splitlines(), 1):
-        spans = []
         for m in ARBITRARY.finditer(line):
-            spans.append(m.span())
             hits.append({"file": path, "line": number, "match": m.group(0), "kind": "arbitrary value"})
-        for m in HEX.finditer(line):
-            inside = any(start <= m.start() < end for start, end in spans)
-            if not inside and not LINK_ATTR.search(line[: m.start()]):
+        for value in VALUE.finditer(line):
+            for m in HEX.finditer(value.group(1)):
                 hits.append({"file": path, "line": number, "match": m.group(0), "kind": "raw hex"})
     return hits
 

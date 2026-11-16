@@ -53,6 +53,11 @@ class TokenGateTest(unittest.TestCase):
             ("&#123; is an entity", []),
             ("<td>#1001</td>", []),
             ('<td style="color:#333">#1001</td>', ["#333"]),
+            ("<td>Order #1001</td>", []),
+            ("#fab { color: red; }", []),
+            ('<button data-target="#abc">', []),
+            ("const theme = { text: '#333', bg: \"#fafafa\" };", ["#333", "#fafafa"]),
+            ("background: linear-gradient(#fff, #000);", ["#fff", "#000"]),
             ('<div class="mt-4 text-sm">', []),
             ("const first = items[0];", []),
         ]
