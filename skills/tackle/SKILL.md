@@ -35,11 +35,11 @@ Step 2 creates any of these that the repo doesn't have yet.
 
 ## Commits
 
-Every commit in this run uses a conventional commit subject that references the issue: `fix(#N): ...` for a `bug`, `feat(#N): ...` for a `feature`, and `test(#N):`, `refactor(#N):`, `style(#N):` or `chore(#N):` where those fit better (for example, lint or review fixes). Pass this rule to `diagnose` and `tdd` when you call them. They follow the caller's commit rules.
+Every commit in this run uses a conventional commit subject that references the issue: `fix(#N): ...` for a `bug`, `feat(#N): ...` for a `feature`, and `test(#N):`, `refactor(#N):`, `style(#N):` or `chore(#N):` where those fit better (for example, lint or review fixes). Write each commit message, and the PR body, to a temp file outside the repo with the Write tool, then pass the path (`git commit -F FILE`, `--body-file FILE`). Never use a heredoc or `-F -`: in some sandboxed shells the commit silently doesn't happen. Pass these rules to `diagnose` and `tdd` when you call them. They follow the caller's commit rules.
 
 ## Test and lint output
 
-Test suites and linters can print thousands of lines. Step 2 makes one output file for the run, outside the repo, with `mktemp "${TMPDIR:-/tmp}/pixie-run.XXXXXX"`. Note the path it prints as `OUT`. Send every test and lint run's output to it, overwriting the last run's, and read only the exit code and the summary:
+Test suites and linters can print thousands of lines. Step 2 makes one output file for the run, outside the repo, with `mktemp "${TMPDIR:-/tmp}/pixie-run.XXXXXX"`. Note the path it prints as `OUT`, and type that literal path into each later command. Don't store it in a shell variable, and don't redirect output anywhere else (such as the session scratchpad): both have failed silently in sandboxed runs. Send every test and lint run's output to it, overwriting the last run's, and read only the exit code and the summary:
 ```bash
 COMMAND >"OUT" 2>&1; echo "exit $?"
 tail -n 30 "OUT"
