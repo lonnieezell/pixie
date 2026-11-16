@@ -25,9 +25,11 @@ const CACHE =process.env.PIXIE_PLAYWRIGHT_DIR || join(homedir(), ".cache", "pixi
 
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-// States come inline as JSON or from a file: [{ "name": "menu open", "steps": [{ "click": "SELECTOR" }] }].
-function parseStates(value) {
-  const states = JSON.parse(value.trim().startsWith("[") ? value : readFileSync(value, "utf8"));
+// An option's JSON comes inline or from a file.
+const readJson = (value) => JSON.parse(/^\s*[[{]/.test(value) ? value : readFileSync(value, "utf8"));
+
+// States: [{ "name": "menu open", "steps": [{ "click": "SELECTOR" }] }].
+function checkStates(states) {
   for (const s of states) {
     if (typeof s.name !== "string" || !slug(s.name)) {
       throw new Error(`every state needs a name with letters or digits: ${JSON.stringify(s)}`);
@@ -42,12 +44,12 @@ function parseStates(value) {
 // { "name": "menu open", "from": "typical", "steps": [...] }] }. Every state is shot at the widest viewport,
 // and typical and overflow at the others too. An interaction replays its steps on its base state's page.
 function planMatrix(value, base, widths) {
-  const m = JSON.parse(value.trim().startsWith("{") ? value : readFileSync(value, "utf8"));
-  const missing = REQUIRED_STATES.filter((s) => typeof m.states?.[s] !== "string" || !m.states[s]);
+  const m = readJson(value);
+  const missing = REQUIRED_STATES.filter((s) => !(typeof m.states?.[s] === "string" && m.states[s]));
   if (missing.length) throw new Error(`the preview is missing required states: ${missing.join(", ")}`);
   const desktop = Math.max(...widths);
   const url = (name) => new URL(m.states[name], base).href;
-  const interactions = parseStates(JSON.stringify(m.interactions ?? []));
+  const interactions = checkStates(m.interactions ?? []);
   const unknown = interactions.find((i) => !REQUIRED_STATES.includes(i.from));
   if (unknown) throw new Error(`interaction "${unknown.name}" starts from unknown state "${unknown.from}"`);
   return [
@@ -74,7 +76,7 @@ export function parseOptions(argv) {
   }
   const states = o.matrix
     ? planMatrix(o.matrix, o.url, widths)
-    : parseStates(o.states).map((s) => ({ name: s.name, url: o.url, steps: s.steps ?? [], widths }));
+    : checkStates(readJson(o.states)).map((s) => ({ name: s.name, url: o.url, steps: s.steps ?? [], widths }));
   o.shots = states.flatMap((s) =>
     s.widths.map((width) => ({
       file: `shots/${slug(s.name)}-${width}.png`,

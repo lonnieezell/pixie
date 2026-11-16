@@ -35,10 +35,10 @@ const MATRIX = {
   ),
   interactions: [{ name: "menu open", from: "typical", steps: [{ click: "button[aria-label=Menu]" }] }],
 };
-const matrixArgs = (m) => ["--url", "http://x/", "--out", "/tmp/run", "--matrix", JSON.stringify(m)];
+const matrixArgs = (m, base = "http://x/") => ["--url", base, "--out", "/tmp/run", "--matrix", JSON.stringify(m)];
 
 test("plans every matrix state at desktop, plus typical and overflow at mobile, each at its own URL", () => {
-  const o = parseOptions(["--url", "http://localhost:5173", "--out", "/tmp/run", "--matrix", JSON.stringify(MATRIX)]);
+  const o = parseOptions(matrixArgs(MATRIX, "http://localhost:5173"));
   assert.deepEqual(
     o.shots.map((s) => [s.file, s.url, s.steps.length]),
     [
@@ -55,20 +55,22 @@ test("plans every matrix state at desktop, plus typical and overflow at mobile, 
   );
 });
 
-// Stands in for Playwright's browser and records what the page was asked to do.
+// Stands in for Playwright's browser and records what the page was asked to do. The page's evaluate calls
+// answer in order: the page height, loading axe, then axe's result.
 function fakeBrowser(calls) {
+  const answers = [900, undefined, { violations: [] }];
   const page = {
     goto: async (url) => (calls.push(["goto", url]), { status: () => 200 }),
     waitForLoadState: async () => {},
     click: async (selector) => calls.push(["click", selector]),
     screenshot: async ({ path }) => calls.push(["screenshot", path]),
-    evaluate: async (fn) => (typeof fn === "string" ? undefined : String(fn).includes("axe") ? { violations: [] } : 900),
+    evaluate: async () => answers.shift(),
   };
   return { newContext: async () => ({ setDefaultTimeout() {}, newPage: async () => page, close: async () => {} }) };
 }
 
 test("replays an interaction's steps on its base state's page before the screenshot", async () => {
-  const o = parseOptions(["--url", "http://localhost:5173", "--out", "/tmp/run", "--matrix", JSON.stringify(MATRIX)]);
+  const o = parseOptions(matrixArgs(MATRIX, "http://localhost:5173"));
   const calls = [];
   await captureShot(fakeBrowser(calls), o, o.shots.find((s) => s.state === "menu open"), "");
   assert.deepEqual(calls, [

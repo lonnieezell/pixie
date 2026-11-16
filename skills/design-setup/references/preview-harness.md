@@ -75,11 +75,16 @@ Three pieces, under `src/__preview/` (or `resources/js/__preview/` for Inertia):
 import { OrderList } from "@/components/OrderList";
 import { makeOrders } from "@/test/factories";
 
+// Built once, so a re-render shows the same data.
+const one = makeOrders(1);
+const eight = makeOrders(8);
+const many = makeOrders(60, { customer: "Maximiliana Featherstonehaugh-Wolfeschlegel" });
+
 export const states = {
   empty: () => <OrderList orders={[]} />,
-  single: () => <OrderList orders={makeOrders(1)} />,
-  typical: () => <OrderList orders={makeOrders(8)} />,
-  overflow: () => <OrderList orders={makeOrders(60, { customer: "Maximiliana Featherstonehaugh-Wolfeschlegel" })} />,
+  single: () => <OrderList orders={one} />,
+  typical: () => <OrderList orders={eight} />,
+  overflow: () => <OrderList orders={many} />,
   error: () => <OrderList orders={[]} error="We couldn't load your orders." />,
   loading: () => <OrderList orders={[]} loading />,
 };

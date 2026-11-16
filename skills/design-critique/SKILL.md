@@ -29,9 +29,9 @@ Steps are `click`, `fill`, `press`, `hover` and `waitFor`. Always keep `default`
 - States the user names become interaction states, each starting from the required state it fits (usually `typical`).
 - Write `RUN/matrix.json` from the preview. Skip the states file.
 
-Pick the neighbours from the screens that render the component. The step 5 gate reads the component's files and its preview's.
+The step 5 gate reads the component's files and its preview's.
 
-Pick 1–2 **neighbouring screens**: screens that share this one's layout shell or link to it. The critic compares against them for consistency. Ask if none is obvious.
+Pick 1–2 **neighbouring screens**: screens that share this one's layout shell or link to it (for a previewed component, screens that render it). The critic compares against them for consistency. Ask if none is obvious.
 
 Make a run folder outside the repo with `mktemp -d "${TMPDIR:-/tmp}/pixie-critique.XXXXXX"`, noted as `RUN`.
 
