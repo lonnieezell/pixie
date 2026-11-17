@@ -47,8 +47,16 @@ Claude shows each direction's trade-off, gate results, remaining findings and th
 - **Blend:** say what to take from which ("the table from dense-table, with card-stack's summary"). Claude builds the blend as one more direction and shows it to you.
 - **None:** Claude goes back to the brief with what you said.
 
-## 5. Commit the record
+## 5. Let it build the winner
 
-After the pick, Claude deletes the losing directions' code and writes `docs/design/decisions/YYYY-MM-DD-SLUG.md`: the axes, every direction with its trade-off, screenshots, and why the winner won. The first time, it asks whether to keep the screenshots out of git.
+After the pick, Claude deletes the losing directions' code and builds the winner into your app's real component folders, test-first. Each state in the preview (empty, single, typical, overflow, error, loading, and any interactions) gets one behaviour test, written and seen failing before the code that makes it pass: Vitest and Testing Library in React, view or feature tests in Laravel and CodeIgniter. The tests check what a user gets, such as the empty state's call to action, not the markup. There are no visual snapshot tests.
 
-Commit the record, the screenshots (unless gitignored), and the winner's preview. The preview and the record are the spec for building the winner into production code, which is the next step.
+Where a component in your inventory already does the job (a modal, a tooltip), it's used, even if Modern Web Guidance suggests a native element. Pixie's `tdd` skill runs the red-green loop when it's installed. Without it, Claude runs a short version itself.
+
+Then Claude points the preview at the production component, captures it again, and has the critic compare it with the screenshots you picked. It lists any **drift** (where production no longer looks like your pick) and any new problems, without fixing them. Ask for fixes if you want them.
+
+## 6. Commit
+
+Claude writes `docs/design/decisions/YYYY-MM-DD-SLUG.md`: the axes, every direction with its trade-off, screenshots, why the winner won, and what was built, with its tests and drift. The first time, it asks whether to keep the screenshots out of git.
+
+Commit the production code and its tests, the record, the screenshots (unless gitignored), and the winner's preview.

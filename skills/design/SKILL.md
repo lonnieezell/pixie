@@ -1,12 +1,12 @@
 ---
 name: design
-description: Explore 2–4 design directions for one component, section or page of a React, Laravel Blade or CodeIgniter 4 app. Writes a text brief of directions on named axes and stops for approval, then builds each direction as a preview from the repo's catalogued components, gates and critiques the screenshots, lets the user pick or blend, deletes the losers and writes a dated decision record.
+description: Explore 2–4 design directions for one component, section or page of a React, Laravel Blade or CodeIgniter 4 app. Writes a text brief of directions on named axes and stops for approval, then builds each direction as a preview from the repo's catalogued components, gates and critiques the screenshots, lets the user pick or blend, deletes the losers, builds the winner into production code test-first from its state matrix, checks it for drift and writes a dated decision record.
 disable-model-invocation: true
 ---
 
 # Design
 
-Explore distinct directions for one piece of UI, render them in the real app, and let the user choose with evidence in front of them. The run goes: brief, approval, previews, gates, critique, pick, clean up. **Nothing is written to the repo until the user approves the brief.** This skill ends at the pick and the decision record. Building the winner into production code is a separate step.
+Explore distinct directions for one piece of UI, render them in the real app, and let the user choose with evidence in front of them. The run goes: brief, approval, previews, gates, critique, pick, clean up, converge, record. **Nothing is written to the repo until the user approves the brief.** The winner is then built into production code, with one behaviour test per state of its matrix, and checked against the screenshots the user approved.
 
 Paths used below:
 - `CRITIQUE` is `${CLAUDE_SKILL_DIR}/../design-critique`. Its `scripts/critique.py` (Python 3) runs the gates and builds the critics' folders, and its `scripts/capture.mjs` (Node) takes the screenshots. Its `references/rubric.md` is the rubric.
@@ -94,7 +94,7 @@ The first time this step runs, before writing anything, save `git status --porce
 
 - **Slug:** `SLUG-NAME`, where `SLUG` names the thing being designed (`order-list-dense-table`). Lowercase letters, digits and `-` only.
 - **Every state** of the matrix, with the **same fixtures** in every direction, so the screenshots compare like for like.
-- **Catalogued components only**, imported or called the way the inventory's `Path / import` column says. A new component the brief approved goes in a `previews` folder of its own for the direction, which the inventory scan skips, so it's never catalogued as one of the app's components: building the winner for real is a later step. Blade only resolves `<x-…>` tags under `resources/views/components`, and every file in the previews folder is a preview, so:
+- **Catalogued components only**, imported or called the way the inventory's `Path / import` column says. A new component the brief approved goes in a `previews` folder of its own for the direction, which the inventory scan skips, so it's never catalogued as one of the app's components: step 9 moves the winner's into the app. Blade only resolves `<x-…>` tags under `resources/views/components`, and every file in the previews folder is a preview, so:
 
   | Stack | New components go in | Used as |
   |---|---|---|
@@ -161,26 +161,52 @@ For each direction, print: its axis positions and trade-off, its gate results, i
 - **Blend:** the user says what to take from which (the layout of one, the density of another). Build the blend as one more direction, with its own `direction.md` naming what it takes from where, then run steps 4 to 6 for it, with one fix round. Reuse the neighbours already captured. Then ask again.
 - **None of these:** go back to step 3 with what the user said. Delete every direction's files first (step 8's deletion, for all of them), and its `RUN/directions/NAME` folder, so a reused name doesn't inherit old screenshots or an old `axe.json`.
 
-## 8. Clean up and record
+## 8. Delete the losers
 
-**Delete the losers.** For every direction except the winner, delete each `created` path in its `files.txt` and any folder it leaves empty, and take out the line it added to each `edited` file. Then run `git status --porcelain --untracked-files=all` again and compare it with `RUN/status-before.txt`: the only new lines may be the winner's files (and the harness's own files, if this run installed it). Never touch a line that was already in `status-before.txt`: that's the user's work. In temporary mode, see **Temporary harness** below.
+For every direction except the winner (`WINNER` below), delete each `created` path in its `files.txt` and any folder it leaves empty, and take out the line it added to each `edited` file. Then run `git status --porcelain --untracked-files=all` again and compare it with `RUN/status-before.txt`: the only new lines may be the winner's files (and the harness's own files, if this run installed or built it). Never touch a line that was already in `status-before.txt`: that's the user's work.
 
-**Keep the winner's preview** in the harness or Storybook, with its new components beside it.
+## 9. Converge
+
+Build the winner into production code, test-first, as [references/convergence.md](references/convergence.md) describes: one behaviour test per state of `RUN/directions/WINNER/matrix.json`, red then green, with the inventory's components first for platform behaviour.
+
+- **Where it goes:** the app's real locations, never a `previews` folder. Components go where the inventory's `Path / import` column puts components of their kind, and the component is used on the screen the frame names. A new component the brief approved moves out of the direction's `previews` folder to its real place, under the name the gates checked. Ask if it isn't clear where something belongs.
+- **The preview is the visual reference.** Build to match its screenshots (`RUN/directions/WINNER/shots/`). The tests decide the behaviour.
+- **Point the preview at production.** Once every state's test passes, change the winner's preview to render the production component with the same fixtures, and delete its copies of the new components from the `previews` folder. The preview stays as the component's matrix.
+
+**Check the result.** Gate the production files (the components and styles this step wrote), capture the preview into `RUN/production` with the winner's matrix, then gate again with its `axe.json`. Fix and capture again until the gates pass, as in step 5:
+
+```bash
+python3 CRITIQUE/scripts/critique.py gates --strict --run "RUN/production" --files FILE...
+node CRITIQUE/scripts/capture.mjs --url "ORIGIN" --out "RUN/production" --matrix RUN/directions/WINNER/matrix.json [--storage-state RUN/auth.json]
+```
+
+Then run **one critic pass** against the approved direction. `--approved` gives the critic the winner's screenshots, so it can report drift from them:
+
+```bash
+python3 CRITIQUE/scripts/critique.py brief --run "RUN/production" --rubric CRITIQUE/references/rubric.md \
+  [--extra RUN/extra-rubric.md] --direction RUN/directions/WINNER/direction.md --approved RUN/directions/WINNER \
+  [--neighbours RUN/neighbour-*/shots/*.png]
+```
+
+Start one `pixie:design-critic` agent with only the absolute path of `RUN/production/critic`, save its reply to `RUN/production/critic-findings.json` and run `critique.py review` on it, as in step 6. Accepted `direction.drift` findings are the drift: where production no longer looks like what the user picked. Any other accepted finding is a problem production brought in. Don't fix them in this pass. Print both lists, by severity, with their screenshots, and put them in the decision record.
+
+## 10. Record and finish
 
 **Temporary harness.** With a `temporary` preview surface, there's no harness to keep the winner in. Ask once: install the permanent preview harness now (`SETUP/SKILL.md` step 7, offer 4, including its exclusion proof), so the winner's preview stays, or remove it with the rest. On no, remove the temporary structure as the reference's **Temporary mode** says, and note in the record that the preview wasn't kept.
 
-**Decision record.** Write `docs/design/decisions/YYYY-MM-DD-SLUG.md` from [references/decision-record.md](references/decision-record.md). Copy each direction's `typical` screenshots at 1280 and 390, and the winner's whole matrix at 1280, to `docs/design/decisions/YYYY-MM-DD-SLUG/` as `NAME-STATE-WIDTH.png`. They're already at most 1280 wide at device scale 1. If `oxipng` is on the PATH, run `oxipng -o 2 --strip safe` on the copies to shrink them further without changing a pixel.
+**Decision record.** Write `docs/design/decisions/YYYY-MM-DD-SLUG.md` from [references/decision-record.md](references/decision-record.md). Copy each direction's `typical` screenshots at 1280 and 390, and the winner's whole matrix at 1280, to `docs/design/decisions/YYYY-MM-DD-SLUG/` as `NAME-STATE-WIDTH.png`, and each screenshot a step 9 finding cites as `production-STATE-WIDTH.png`. They're already at most 1280 wide at device scale 1. If `oxipng` is on the PATH, run `oxipng -o 2 --strip safe` on the copies to shrink them further without changing a pixel.
 
 **Gitignore the screenshots.** Ask this only if the inventory's `## Setup offers` has no **Gitignore design decision screenshots** row: "Keep design decision screenshots out of git? I'd add `docs/design/decisions/*/` to `.gitignore`. The records stay committed." On yes, add that line to `.gitignore`. Either way, add the row with the answer and the date.
 
 **Stop what this run started.** Run the verification skill's Cleanup, or stop each process this run started. Leave the user's own processes running. Delete `RUN`.
 
-If the run stops early, at any step after the brief: delete every direction's files as above (there's no winner), remove any temporary structure, stop the processes and delete `RUN`.
+If the run stops early, before the pick: delete every direction's files as step 8 does (there's no winner), remove any temporary structure, stop the processes and delete `RUN`. If it stops during step 9, keep the winner and the production work so far, write the decision record with what was built, and tell the user which states still have no test.
 
 ## Done
 
 Tell the user:
 - the winner, and where its preview lives (slug and path), or that it wasn't kept
+- the production files and the tests, one per state, each of which failed before its code was written
+- the drift and other findings from the last critic pass, by severity
 - the decision record's path
-- what to commit: the record, the screenshots unless gitignored, the winner's preview and its new components, and the inventory if this run created or refreshed it
-- that building the winner into production code is the next step, with the record and the preview as its spec
+- what to commit: the production code and its tests, the record, the screenshots unless gitignored, the winner's preview, and the inventory if this run created or refreshed it

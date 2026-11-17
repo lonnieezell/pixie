@@ -137,7 +137,7 @@ From here, you can run `/pixie:untangle` to have Claude pick the top hotspot and
 | `create-verifier` | Writes a project skill that drives your app like a user | `/pixie:create-verifier`                           | —                                 |
 | `design-setup` | Catalogues the repo's design system for design work        | `/pixie:design-setup`                              | —                                 |
 | `design-critique` | Critiques one screen of the running app from screenshots | `/pixie:design-critique /orders`                   | Node and Playwright, or a browser MCP |
-| `design`      | Explores 2–4 design directions and records your pick        | `/pixie:design the order list`                     | Node and Playwright, or a browser MCP |
+| `design`      | Explores 2–4 design directions, builds your pick test-first | `/pixie:design the order list`                     | Node and Playwright, or a browser MCP |
 | `diagnose`    | Finds a bug's root cause, proves it, then fixes it          | `/pixie:diagnose checkout total is wrong`          | —                                 |
 | `how`         | Explains how part of the codebase works                     | `/pixie:how does authentication work`              | —                                 |
 | `huh`         | Restates Claude's last reply in plain language              | `/pixie:huh`                                       | —                                 |

@@ -196,8 +196,7 @@ Ask once, with AskUserQuestion:
 
 - **Fix the top N** (default 3; the user can name numbers instead, such as `G1 F2`). Gate failures count first, then findings in rank order.
   - CSS or token changes (spacing, colour, type, layout): make them directly, using the inventory's tokens and preferred components, never new raw values.
-  - Behaviour changes (a missing empty state, focus handling, a label that needs new markup): through the `pixie:tdd` skill if it's available, otherwise test-first by hand.
-  - If Modern Web Guidance is installed, consult it for platform behaviour (overlays, forms, transitions, responsive containers). The inventory's components still win over a platform suggestion.
+  - Behaviour changes (a missing empty state, focus handling, a label that needs new markup): test-first, as [convergence.md](../design/references/convergence.md) (in `${CLAUDE_SKILL_DIR}/../design/references/`) describes, with one test per fix for the state its finding cites. It uses the `pixie:tdd` skill when it's available and a short red-green loop when it isn't, and the inventory's components win over a Modern Web Guidance suggestion for platform behaviour.
   - Then capture the affected states again and run the gates, and say which items are gone.
 - **File as issues**, as `poke` does: one GitHub issue per finding or gate failure the user picks, holding its entry from the report. Describe the screenshots in words, since they may be gitignored. Ask whether to label them `ready-for-agent`. If `docs/agents/pixie-labels.md` exists, use its label for that role.
 - **Leave it**: the report is saved, and nothing else changes.
