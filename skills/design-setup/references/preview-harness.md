@@ -312,7 +312,7 @@ use CodeIgniter\Test\Fabricator;
 $orders = static fn (int $count, array $overrides = []) => (new Fabricator(OrderModel::class))
     ->setOverrides($overrides)
     ->make($count);
-$list = static fn (array $orders, array $extra = []) => view_cell('OrderListCell', ['orders' => $orders, ...$extra]);
+$list = static fn (array $orders, array $extra = []) => view_cell('OrderListCell', array_merge(['orders' => $orders], $extra));
 
 // Each request renders one state, so each state builds only its own data.
 return [
@@ -367,23 +367,20 @@ $routes->get('__preview/([a-z0-9-]+)', static function (string $slug) {
     $problem = static fn (string $message) => '<p role="alert" data-pixie-preview-error>' . esc($message) . '</p>';
 
     // Keeps the debug toolbar out of the screenshots: it skips any request with a header listed here.
-    config(Toolbar::class)->disableOnHeaders['X-Pixie-Preview'] = null;
-    service('request')->setHeader('X-Pixie-Preview', '1');
-
-    // Previews never read or write a database: while one renders, every connection only pretends to run its
-    // queries, and any query it was asked to run is shown as the problem. This opens no connection.
-    $connections = [];
-    foreach (get_object_vars(config(Database::class)) as $group => $settings) {
-        if (is_array($settings) && isset($settings['DBDriver'])) {
-            $db            = Database::connect($group);
-            $connections[] = [$db, $db->getLastQuery()];
-            $db->pretend();
-        }
+    $toolbar = config(Toolbar::class);
+    if (property_exists($toolbar, 'disableOnHeaders')) {
+        $toolbar->disableOnHeaders['X-Pixie-Preview'] = null;
+        service('request')->setHeader('X-Pixie-Preview', '1');
     }
-    $queried = static function () use ($connections): ?string {
+
+    // Previews never read or write a database: while one renders, every connection only pretends, so no query
+    // runs, and the first one asked for is shown as the problem. Asking still connects, so a database that's
+    // down shows as a connection error instead.
+    $connections = [];
+    $queried     = static function () use (&$connections): ?string {
         foreach ($connections as [$db, $before]) {
             if ($db->getLastQuery() !== $before) {
-                return "previews never query the database, but this ran: {$db->getLastQuery()}";
+                return "previews never query the database, but this was asked for: {$db->getLastQuery()}";
             }
         }
 
@@ -392,6 +389,14 @@ $routes->get('__preview/([a-z0-9-]+)', static function (string $slug) {
     $buffers = ob_get_level();
 
     try {
+        foreach (get_object_vars(config(Database::class)) as $group => $settings) {
+            if (is_array($settings) && isset($settings['DBDriver'])) {
+                $db            = Database::connect($group);
+                $connections[] = [$db, $db->getLastQuery()];
+                $db->pretend();
+            }
+        }
+
         // Seeded, so Faker data is the same on every load and screenshots compare across runs.
         mt_srand(1);
 
@@ -434,17 +439,18 @@ If the layout needs more (a signed-in user, a locale), set it up in this route b
 
 ```php
 // Pixie's preview harness, for /design-critique. Never registered outside development.
-$routes->environment('development', static function (RouteCollection $routes): void {
+// Untyped: before CodeIgniter 4.4 this file is in the Config namespace, where RouteCollection means something else.
+$routes->environment('development', static function ($routes): void {
     require APPPATH . 'Config/PreviewRoutes.php';
 });
 ```
 
 Writing CodeIgniter previews:
-- **A query in a preview** shows as the error, and never runs. The usual cause is `Fabricator::create()` or the `fake()` test helper, which both save: use `make()`. The guard covers the shared connection of every group in `app/Config/Database.php`. A connection the code opens itself (`db_connect($group, false)`) isn't covered, so never use one in a preview.
+- **A query in a preview** shows as the error, and never runs. The usual cause is `Fabricator::create()` or the `fake()` test helper, which both save: use `make()`. If the database is down, the error is "Unable to connect" instead of the query. The guard covers queries through the query builder, models and `query()` on the shared connection of every group in `app/Config/Database.php`. It doesn't cover `simpleQuery()` or a connection the code opens itself (`db_connect($group, false)`), so never use either in a preview.
 - **A query in the layout** (a view cell in the nav reading categories, sessions kept in the database) fails every state. Don't loosen the guard. Use a layout that doesn't query, if the app has one. Otherwise stop and tell the user which query runs, and ask how to give the layout made-up data in previews.
 - **`loading`.** A CodeIgniter page has no pending state of its own. Render the placeholder the page shows while it waits (a skeleton, a disabled "Saving…" button, an `aria-busy` region), or follow the matrix rule for a state the component can't show.
-- **Form errors.** For a form whose `error` state is validation messages, set them in that state's closure before rendering: `service('validation')->setError('email', 'That email is already taken.');`. `validation_show_error()`, `validation_list_errors()` and `validation_errors()` show them.
-- **The debug toolbar** is kept off preview pages through `Config\Toolbar::$disableOnHeaders`. If `app/Config/Toolbar.php` lacks that property, each load logs a dynamic-property deprecation: suggest adding `public array $disableOnHeaders = [];`. If the toolbar still shows (an older framework), tell the user it will appear in the screenshots.
+- **Form errors.** For a form whose `error` state is validation messages, set them in that state's closure before rendering: `service('validation')->setError('email', 'That email is already taken.');`. `validation_show_error()`, `validation_list_errors()` and `validation_errors()` show them. They read the session first, so with sessions kept in the database, that's a query in the preview (see the layout note above).
+- **The debug toolbar** is kept off preview pages through `Config\Toolbar::$disableOnHeaders`. If it shows in a preview, `app/Config/Toolbar.php` predates that property: suggest adding `public array $disableOnHeaders = [];` to it. If it still shows (a framework older than the property), tell the user it will appear in the screenshots.
 
 **Prove the exclusion** after installing, before recording the answer. Don't record `yes` until both pass:
 - `CI_ENVIRONMENT=development php -d variables_order=EGPCS spark routes` lists `__preview/([a-z0-9-]+)`, and `CI_ENVIRONMENT=production php -d variables_order=EGPCS spark routes` doesn't. The `-d` flag matters: without it, `CI_ENVIRONMENT` from `.env` wins over the one on the command line, and both runs check the same environment. Don't run it for `testing`: `spark` can't start in PHPUnit's environment.
