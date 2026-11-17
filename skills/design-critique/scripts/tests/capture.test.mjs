@@ -67,12 +67,14 @@ test("plans every matrix state at desktop, plus typical and overflow at mobile, 
 
 // Stands in for Playwright's browser and records what the page was asked to do. The page's evaluate calls
 // answer in order: the page height, loading axe, then axe's result.
-function fakeBrowser(calls, previewError = null) {
+// `shows` is an error the page shows: the selector part that marks it, and its text.
+function fakeBrowser(calls, shows = null) {
   const answers = [900, undefined, { violations: [] }];
   const page = {
-    $: async () => previewError && { textContent: async () => previewError },
+    $: async (selector) => shows && selector.includes(shows.marker) && { textContent: async () => shows.text },
     goto: async (url) => (calls.push(["goto", url]), { status: () => 200 }),
     waitForLoadState: async () => {},
+    waitForSelector: async () => calls.push(["waitForSelector"]),
     click: async (selector) => calls.push(["click", selector]),
     screenshot: async ({ path }) => calls.push(["screenshot", path]),
     evaluate: async () => answers.shift(),
@@ -86,19 +88,23 @@ test("replays an interaction's steps on its base state's page before the screens
   await captureShot(fakeBrowser(calls), o, o.shots.find((s) => s.state === "menu open"), "");
   assert.deepEqual(calls, [
     ["goto", "http://localhost:5173/__preview/order-list?state=typical"],
+    ["waitForSelector"],
     ["click", "button[aria-label=Menu]"],
     ["screenshot", "/tmp/run/shots/menu-open-1280.png"],
   ]);
 });
 
-test("fails a shot whose page is a preview error, served with a 200, instead of capturing it", async () => {
+test("#24: fails a shot whose page is a preview error, served with a 200, instead of capturing it", async () => {
   const o = parseOptions(matrixArgs(MATRIX));
-  const calls = [];
-  await assert.rejects(
-    captureShot(fakeBrowser(calls, "No preview named order-list"), o, o.shots[0], ""),
-    /No preview named order-list/,
-  );
-  assert.ok(!calls.some(([call]) => call === "screenshot"));
+  const errors = [
+    { marker: "data-pixie-preview-error", text: "No preview named order-list" },
+    { marker: "sb-show-errordisplay", text: "Couldn't find story matching 'orders-orderlist--eror'" },
+  ];
+  for (const shows of errors) {
+    const calls = [];
+    await assert.rejects(captureShot(fakeBrowser(calls, shows), o, o.shots[0], ""), new RegExp(shows.text));
+    assert.ok(!calls.some(([call]) => call === "screenshot"), shows.marker);
+  }
 });
 
 test("rejects bad options", () => {
@@ -118,6 +124,10 @@ test("rejects bad options", () => {
     [matrixArgs({ ...MATRIX, interactions: [{ name: "typical", from: "typical", steps: [] }] }), /same file/],
     [matrixArgs({ ...MATRIX, interactions: [{ name: "a", from: "typical", viewports: [768], steps: [] }] }), /768/],
     [[...matrixArgs(MATRIX), "--states", '[{"name":"default"}]'], /--states/],
+    [matrixArgs({ ...MATRIX, states: { ...MATRIX.states, disabled: "" } }), /disabled/],
+    [matrixArgs({ ...MATRIX, states: { ...MATRIX.states, "!!!": "/x" } }), /name/],
+    [matrixArgs({ ...MATRIX, interactions: [{ name: "a", from: "typical", viewports: [], steps: [] }] }), /viewports/],
+    [matrixArgs({ ...MATRIX, interactions: [{ name: "a", from: "typical", viewports: 390, steps: [] }] }), /viewports/],
   ];
   for (const [argv, message] of cases) {
     assert.throws(() => parseOptions(argv), message);

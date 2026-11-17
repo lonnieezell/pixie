@@ -21,6 +21,8 @@ const STEP_TIMEOUT_MS = 10000;
 const LOAD_TIMEOUT_MS = 60000;
 const ACTIONS = ["click", "fill", "press", "hover", "waitFor"];
 const REQUIRED_STATES = ["empty", "single", "typical", "overflow", "error", "loading"];
+// The preview harness's own error message, and Storybook's error display.
+const PREVIEW_ERROR = "[data-pixie-preview-error], body.sb-show-errordisplay";
 const CACHE =process.env.PIXIE_PLAYWRIGHT_DIR || join(homedir(), ".cache", "pixie", "playwright");
 
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -40,24 +42,34 @@ function checkStates(states) {
   return states;
 }
 
+function checkInteraction(i, names, widths) {
+  if (!names.includes(i.from)) throw new Error(`interaction "${i.name}" starts from unknown state "${i.from}"`);
+  if (i.viewports === undefined) return;
+  if (!Array.isArray(i.viewports) || !i.viewports.length) {
+    throw new Error(`interaction "${i.name}": viewports must be a list of widths`);
+  }
+  const other = i.viewports.find((w) => !widths.includes(w));
+  if (other !== undefined) throw new Error(`interaction "${i.name}": viewport ${other} isn't one of ${widths}`);
+}
+
 // A preview's state matrix: { "states": { "empty": "/__preview/x?state=empty", ... }, "interactions": [
 // { "name": "menu open", "from": "typical", "steps": [...], "viewports": [390] }] }. Every state is shot at
 // the widest viewport, and typical and overflow at the others too. Any state beyond the six is shot as well.
 // An interaction replays its steps on its base state's page, at the widest viewport unless it names others.
 function planMatrix(value, base, widths) {
   const m = readJson(value);
-  const missing = REQUIRED_STATES.filter((s) => !(typeof m.states?.[s] === "string" && m.states[s]));
+  const states = m.states ?? {};
+  const noPath = (s) => !(Object.hasOwn(states, s) && typeof states[s] === "string" && states[s]);
+  const missing = REQUIRED_STATES.filter(noPath);
   if (missing.length) throw new Error(`the preview is missing required states: ${missing.join(", ")}`);
-  const names = [...REQUIRED_STATES, ...checkStates(Object.keys(m.states).filter((s) => !REQUIRED_STATES.includes(s))
-    .map((name) => ({ name }))).map((s) => s.name)];
+  const names = [...REQUIRED_STATES, ...Object.keys(states).filter((s) => !REQUIRED_STATES.includes(s))];
+  checkStates(names.map((name) => ({ name })));
+  const empty = names.filter(noPath);
+  if (empty.length) throw new Error(`these states need a URL path: ${empty.join(", ")}`);
   const desktop = Math.max(...widths);
-  const url = (name) => new URL(m.states[name], base).href;
+  const url = (name) => new URL(states[name], base).href;
   const interactions = checkStates(m.interactions ?? []);
-  for (const i of interactions) {
-    if (!names.includes(i.from)) throw new Error(`interaction "${i.name}" starts from unknown state "${i.from}"`);
-    const other = (i.viewports ?? []).find((w) => !widths.includes(w));
-    if (other !== undefined) throw new Error(`interaction "${i.name}": viewport ${other} isn't one of ${widths}`);
-  }
+  for (const i of interactions) checkInteraction(i, names, widths);
   return [
     ...names.map((name) => ({
       name, url: url(name), steps: [], widths: ["typical", "overflow"].includes(name) ? widths : [desktop],
@@ -91,6 +103,7 @@ export function parseOptions(argv) {
       file: `shots/${slug(s.name)}-${width}.png`,
       state: s.name,
       url: s.url,
+      preview: Boolean(o.matrix),
       steps: s.steps,
       viewport: { width, height: width <= 480 ? 844 : 800 },
     })),
@@ -135,9 +148,13 @@ export async function captureShot(browser, o, shot, axe) {
     const response = await page.goto(shot.url, { waitUntil: "load", timeout: LOAD_TIMEOUT_MS });
     if (response && response.status() >= 400) throw new Error(`HTTP ${response.status()} for ${shot.url}`);
     await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
-    // The preview harness serves its errors (no such preview or state) with a 200, marked with this attribute.
-    const previewError = await page.$("[data-pixie-preview-error]");
-    if (previewError) throw new Error(`preview error: ${await previewError.textContent()}`);
+    if (shot.preview) {
+      // A preview renders after a lazy import, so wait for it (or its error) to settle. The harness and Storybook
+      // both serve their errors (no such preview, state or story) with a 200, so look for them here.
+      await page.waitForSelector(`${PREVIEW_ERROR}, [data-pixie-preview], body.sb-show-main`);
+      const previewError = await page.$(PREVIEW_ERROR);
+      if (previewError) throw new Error(`preview error: ${(await previewError.textContent()).trim().slice(0, 200)}`);
+    }
     for (const step of shot.steps) await runStep(page, step);
     const height = Math.min(await page.evaluate(() => document.documentElement.scrollHeight), MAX_HEIGHT);
     await page.screenshot({ path: join(o.out, shot.file), fullPage: true, clip: { x: 0, y: 0, width: shot.viewport.width, height } });

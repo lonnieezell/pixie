@@ -26,7 +26,7 @@ Steps are `click`, `fill`, `press`, `hover` and `waitFor`. Always keep `default`
 
 **A component in a React repo** is captured from its preview instead, in every state of the state matrix. [preview-harness.md](../design-setup/references/preview-harness.md) (in `${CLAUDE_SKILL_DIR}/../design-setup/references/`) describes previews, the matrix, fixtures and temporary mode. Read it, then:
 - Find the component's preview where the inventory's `## Preview surface` says previews live: a stories file with the six state stories, or `previews/<slug>.preview.tsx` in the harness. If it has none, write one. If the surface is `temporary` (or the inventory is missing), build the temporary structure for this run as the reference describes, once `RUN` exists (below). Step 9 removes it.
-- States the user names become interaction states, each starting from the required state it fits (usually `typical`).
+- States the user names become interaction states, each starting from the preview state it fits (usually `typical`).
 - Write `RUN/matrix.json` from the preview. Skip the states file.
 
 The step 5 gate reads the component's files, not the preview's: fixture data such as a swatch colour isn't a raw value in the UI.
@@ -78,14 +78,14 @@ For a preview, capture the matrix instead of a states file. `ORIGIN` is the dev 
 node SCRIPTS/capture.mjs --url "ORIGIN" --out "RUN" --matrix RUN/matrix.json [--storage-state RUN/auth.json]
 ```
 
-That captures every state at 1280 wide, plus `typical` and `overflow` at 390, and each interaction at 1280 or the widths it names. Exit 1 with "missing required states" means the preview is incomplete: add the missing states to the preview, then capture again. A shot listed under `errors` with "preview error" hit the harness's own error message (no such preview or state): fix the registry or the matrix path.
+That captures every state at 1280 wide, plus `typical` and `overflow` at 390, and each interaction at 1280 or the widths it names. Exit 1 with "missing required states" means the preview is incomplete: add the missing states to the preview, then capture again. A shot listed under `errors` with "preview error" hit the harness's own error message (no such preview or state, or a preview that failed to load) or Storybook's error display (no such story): fix the preview, the registry or the matrix path. A timeout waiting for the preview means the page rendered neither: check the harness is mounted, or that the URL is a story.
 
 Capture each neighbour into its own folder (`neighbour-1`, `neighbour-2`). The default widths are 390 and 1280. A width over 1280 is refused, and screenshots are taken at device scale 1 and cut off at 4000px tall, which keeps them small.
 
 It writes `RUN/shots/STATE-WIDTH.png`, `RUN/axe.json`, and `RUN/manifest.json`:
 
 ```json
-{"url": "...", "capturedAt": "...", "shots": [{"file": "shots/default-390.png", "state": "default", "viewport": 390, "url": "..."}], "errors": [{"file": "...", "state": "...", "viewport": 390, "error": "..."}]}
+{"url": "...", "capturedAt": "...", "shots": [{"file": "shots/default-390.png", "state": "default", "viewport": 390, "url": "..."}], "errors": [{"file": "...", "state": "...", "viewport": 390, "url": "...", "error": "..."}]}
 ```
 
 Exit 3 means the cache isn't ready (go back to step 2). Exit 1 means bad options, or no screenshot could be taken: check the app is up and the URL is right. A state listed under `errors` couldn't be reached. Fix its steps and capture again, or list it under **Not checked**.
