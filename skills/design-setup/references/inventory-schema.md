@@ -125,7 +125,7 @@ A refresh re-infers a changed component's status only when it has no annotation.
 
 **Patterns.** Repeated markup that isn't already a component. "Canonical example" is the cleanest single occurrence, as `path:line`. "Occurrences" counts the occurrences and the files they're in. The suggestion is only a suggestion. Nothing gets refactored.
 
-**Preview surface.** `storybook (PATH)`, `harness (/__preview)`, or `temporary`.
+**Preview surface.** Where a component's state-matrix previews live (see [preview-harness.md](preview-harness.md)). `storybook (PATH)` with the command and URL that launch Storybook, `harness (/__preview)` with the previews folder, or `temporary` (the user declined the harness, or the stack isn't React). Storybook alone doesn't make it `storybook`: the user must accept the harness offer.
 
 **Launch fallback.** The launch command and URL the user confirmed (for example `php spark serve` at `http://localhost:8080`), for when there's no verifier. `none` when the repo has a verifier: design skills look for `.claude/skills/verify-*/` themselves when they run.
 
