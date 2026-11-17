@@ -72,7 +72,7 @@ node SCRIPTS/capture.mjs --url "URL" --out "RUN" --states RUN/states.json [--sto
 node SCRIPTS/capture.mjs --url "NEIGHBOUR_URL" --out "RUN/neighbour-1" --viewports 1280 [--storage-state RUN/auth.json]
 ```
 
-For a preview, capture the matrix instead of a states file. `ORIGIN` is the origin that serves the preview route (in Laravel, the app's own URL, not Vite's; in CodeIgniter, the app's URL), or Storybook's:
+For a preview, capture the matrix instead of a states file. `ORIGIN` is the origin that serves the preview route (in Laravel, the app's own URL, not Vite's), or Storybook's:
 
 ```bash
 node SCRIPTS/capture.mjs --url "ORIGIN" --out "RUN" --matrix RUN/matrix.json [--storage-state RUN/auth.json]
