@@ -167,6 +167,7 @@ class BriefTest(unittest.TestCase):
             self.assertIn("Colours come from tokens.", context)
             self.assertIn("Dense tables are fine on admin screens.", context)
             self.assertNotIn("status:", context)
+            self.assertNotIn("# Direction", context)
 
     def test_rerunning_brief_rebuilds_the_folder(self):
         with tempfile.TemporaryDirectory() as d:
@@ -247,10 +248,12 @@ class CliTest(unittest.TestCase):
             rubric.write_text(RUBRIC)
             extra.write_text(EXTRA)
             found.write_text(json.dumps([finding(), finding(rubric="type.line-length")]))
+            direction = root / "direction.md"
+            direction.write_text("**Dense table.** Density: high. Trades scannability for fewer clicks.\n")
 
             C.main(["gates", "--root", d, "--run", str(run), "--inventory", str(inventory), "--files", "page.tsx"])
             C.main(["brief", "--run", str(run), "--inventory", str(inventory), "--rubric", str(rubric),
-                    "--extra", str(extra), "--neighbours", *map(str, neighbours)])
+                    "--extra", str(extra), "--direction", str(direction), "--neighbours", *map(str, neighbours)])
             C.main(["review", "--run", str(run), "--inventory", str(inventory), "--findings", str(found)])
 
             gates = json.loads((run / "gates.json").read_text())
@@ -258,6 +261,8 @@ class CliTest(unittest.TestCase):
             self.assertEqual([g["match"] for g in gates["tokens"]], ["text-[#333]"])
             self.assertEqual(gates["skipped"], [])
             self.assertTrue((run / "critic" / "rubric.md").exists())
+            context = (run / "critic" / "context.md").read_text()
+            self.assertIn("# Direction\n**Dense table.** Density: high.", context)
             review = json.loads((run / "findings.json").read_text())
             self.assertEqual([len(review[k]) for k in ("accepted", "rejected", "suppressed")], [1, 0, 1])
 

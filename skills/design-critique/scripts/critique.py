@@ -59,7 +59,7 @@ def merge_rubric(rubric, extra):
     return rubric.rstrip("\n") + "\n\n## Added for this repo\n\n| ID | Check | Typical severity |\n|---|---|---|\n" + "\n".join(rows) + "\n"
 
 
-def brief(run, inventory, rubric, extra, neighbours):
+def brief(run, inventory, rubric, extra, neighbours, direction=""):
     """Build the critic's folder: screenshots, manifest, rubric and house rules. Never code."""
     run = Path(run)
     critic = run / "critic"
@@ -76,6 +76,7 @@ def brief(run, inventory, rubric, extra, neighbours):
     (critic / "rubric.md").write_text(merge_rubric(rubric, extra))
     (critic / "context.md").write_text(
         "# House rules\n" + section(inventory, "Rules") + "\n# Rubric overrides\n" + section(inventory, "Rubric overrides")
+        + ("\n# Direction\n" + direction if direction else "")
     )
     return critic
 
@@ -213,6 +214,7 @@ def main(argv=None):
     b.add_argument("--rubric", required=True)
     b.add_argument("--extra", help="extra rubric rows from installed design skills")
     b.add_argument("--neighbours", nargs="*", default=[])
+    b.add_argument("--direction", help="the design direction this screen was built to, from /design's brief")
     r = sub.add_parser("review", help="validate, suppress and rank the critic's findings -> RUN/findings.json")
     r.add_argument("--findings", required=True)
     for s in (g, b, r):
@@ -236,7 +238,7 @@ def main(argv=None):
         if a.strict and (axe or tokens or skipped or blocked):
             raise SystemExit(1)
     elif a.cmd == "brief":
-        print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours))
+        print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours, read(a.direction)))
     else:
         result = review_findings(run / "critic", inventory, json.loads(read(a.findings)))
         (run / "findings.json").write_text(json.dumps(result, indent=2))
