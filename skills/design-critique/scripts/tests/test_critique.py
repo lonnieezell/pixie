@@ -262,6 +262,37 @@ class CliTest(unittest.TestCase):
             self.assertEqual([len(review[k]) for k in ("accepted", "rejected", "suppressed")], [1, 0, 1])
 
 
+    def test_strict_gates_exit_1_while_anything_blocks(self):
+        violation = {"id": "region", "impact": "moderate", "help": "Landmarks", "nodes": [{"target": ["#f"]}]}
+        clean_component = [{"name": "OrderSummary", "path": "page.tsx", "why": "Nothing catalogued shows totals."}]
+        cases = [
+            ("clean", [], '<p className="text-sm" />', ["page.tsx"], clean_component, None),
+            ("axe violation", [violation], '<p className="text-sm" />', ["page.tsx"], clean_component, 1),
+            ("raw value", [], '<p className="text-[#333]" />', ["page.tsx"], clean_component, 1),
+            ("unreadable file", [], '<p className="text-sm" />', ["gone.tsx"], clean_component, 1),
+            ("unjustified component", [], '<p className="text-sm" />', ["page.tsx"],
+             [{"name": "OrderSummary", "path": "page.tsx"}], 1),
+        ]
+        for name, violations, page, files, components, code in cases:
+            with self.subTest(name), tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                run, _ = make_run(d)
+                (run / "axe.json").write_text(json.dumps([{**MANIFEST["shots"][0], "violations": violations}]))
+                (root / "page.tsx").write_text(page + "\n")
+                (root / "inv.md").write_text(INVENTORY)
+                (root / "components.json").write_text(json.dumps(components))
+                argv = ["gates", "--strict", "--root", d, "--run", str(run), "--inventory", str(root / "inv.md"),
+                        "--components", str(root / "components.json"), "--files", *files]
+                if code is None:
+                    C.main(argv)
+                else:
+                    with self.assertRaises(SystemExit) as exit:
+                        C.main(argv)
+                    self.assertEqual(exit.exception.code, code)
+                gates = json.loads((run / "gates.json").read_text())
+                self.assertEqual([c["name"] for c in gates["components"]], ["OrderSummary"])
+
+
 class AxeGateTest(unittest.TestCase):
     def test_lists_each_violation_per_screenshot_most_severe_first(self):
         report = [

@@ -207,6 +207,8 @@ def main(argv=None):
     g = sub.add_parser("gates", help="axe and token-compliance gates -> RUN/gates.json")
     g.add_argument("--root", default=".")
     g.add_argument("--files", nargs="*", default=[], help="repo-relative files that render the route")
+    g.add_argument("--components", help="JSON list of the components a design direction adds: name, path, why")
+    g.add_argument("--strict", action="store_true", help="exit 1 while any gate has a failure")
     b = sub.add_parser("brief", help="the critic's code-free folder -> RUN/critic/")
     b.add_argument("--rubric", required=True)
     b.add_argument("--extra", help="extra rubric rows from installed design skills")
@@ -222,9 +224,17 @@ def main(argv=None):
     if a.cmd == "gates":
         axe = axe_findings(json.loads(read(run / "axe.json") or "[]"))
         tokens, skipped = token_gate(a.root, inventory, a.files)
-        (run / "gates.json").write_text(json.dumps({"axe": axe, "tokens": tokens, "skipped": skipped}, indent=2))
-        print(f"axe violations: {len(axe)}, raw values: {len(tokens)}, unreadable files: {skipped or 'none'}"
-              f" -> {run / 'gates.json'}")
+        gates = {"axe": axe, "tokens": tokens, "skipped": skipped}
+        summary = f"axe violations: {len(axe)}, raw values: {len(tokens)}, unreadable files: {skipped or 'none'}"
+        blocked = []
+        if a.components:
+            gates["components"] = component_gate(inventory, json.loads(read(a.components)))
+            blocked = [c["name"] for c in gates["components"] if c["blocked"]]
+            summary += f", blocked components: {blocked or 'none'}"
+        (run / "gates.json").write_text(json.dumps(gates, indent=2))
+        print(f"{summary} -> {run / 'gates.json'}")
+        if a.strict and (axe or tokens or skipped or blocked):
+            raise SystemExit(1)
     elif a.cmd == "brief":
         print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours))
     else:
