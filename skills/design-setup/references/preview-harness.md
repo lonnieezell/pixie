@@ -156,7 +156,7 @@ If the check fails, fix the mount and check again. Don't record `yes` until it p
 
 ## Laravel Blade
 
-The same contract, served by Laravel: `/__preview/<slug>?state=<name>`, the six required states, [the markers](#the-state-matrix) and the same matrix file. A preview renders a Blade component (`<x-order-list>`) or a partial (`@include('orders._row')`) inside the app's own layout, so the page gets the app's real CSS and JS through `@vite` or `mix()`, whether that's Bootstrap or Tailwind. Those assets must be served too: run the repo's dev script (`npm run dev`) alongside the app, or build them first. With neither, `@vite` throws and every state shows the error.
+The same contract, served by Laravel: `/__preview/<slug>?state=<name>`, the six required states, [the markers](#the-state-matrix) and the same matrix file. A preview renders a Blade component (`<x-order-list>`) or a partial (`@include('orders._row')`) inside the app's own layout, so the page gets the app's real CSS and JS through `@vite` or `mix()`, whether that's Bootstrap or Tailwind. Those assets must be served too: run the repo's dev script (`composer run dev` in Laravel 11 and later, which starts the app and Vite together, or `npm run dev` alongside the app), or build them first. With neither, every state shows "Vite manifest not found".
 
 Four pieces:
 
@@ -215,6 +215,7 @@ For a component layout, wrap it instead: `<x-app-layout><div data-pixie-preview>
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\ViewException;
 
 Route::get('/__preview/{slug}', function (string $slug) {
     $required = ['empty', 'single', 'typical', 'overflow', 'error', 'loading'];
@@ -223,24 +224,25 @@ Route::get('/__preview/{slug}', function (string $slug) {
     // Served bare, without the layout, so a broken layout can't hide it.
     $problem = fn (string $message) => response('<p role="alert" data-pixie-preview-error>'.e($message).'</p>');
 
-    if (! is_file($file)) {
-        return $problem("No preview named {$slug}");
-    }
-
-    // Previews never read or write the database: any query on the default connection while rendering fails
-    // and is shown as a problem.
+    // Previews never read or write a database: any query on any connection while rendering fails and is
+    // shown as a problem. Connections open lazily, so this opens none.
     $rendering = true;
-    DB::beforeExecuting(function (string $query) use (&$rendering) {
-        if ($rendering) {
-            throw new RuntimeException("previews never query the database, but this ran: {$query}");
-        }
-    });
+    foreach (array_keys(config('database.connections')) as $name) {
+        DB::connection($name)->beforeExecuting(function (string $query) use (&$rendering) {
+            if ($rendering) {
+                throw new RuntimeException("previews never query the database, but this ran: {$query}");
+            }
+        });
+    }
     try {
         // Seeded, so factory data is the same on every load and screenshots compare across runs.
         fake()->seed(1);
         // A made-up user, never saved, for a layout that shows who's signed in.
         auth()->setUser(User::factory()->make(['name' => 'Preview User']));
 
+        if (! is_file($file)) {
+            return $problem("No preview named {$slug}");
+        }
         // Required in its own scope, so the preview's variables can't overwrite the harness's.
         $states = (static fn () => require $file)()['states'];
         $missing = array_diff($required, array_keys($states));
@@ -255,6 +257,11 @@ Route::get('/__preview/{slug}', function (string $slug) {
         // state while the layout renders, so the component's @push and @once reach the layout's @stack.
         return response(view('__preview', ['render' => $states[$state]])->render());
     } catch (Throwable $e) {
+        // Blade wraps an error once per view it passes through; show the original.
+        while ($e instanceof ViewException && $e->getPrevious()) {
+            $e = $e->getPrevious();
+        }
+
         return $problem("Preview {$slug} failed to render: {$e->getMessage()}");
     } finally {
         // The session and anything after the response may use the database again.
@@ -276,14 +283,15 @@ if (app()->environment('local')) {
 
 Writing Blade previews:
 - **A query in a preview** shows as the error. The usual cause is a factory whose definition has a parent factory (`'user_id' => User::factory()`): `make()` still saves that parent. Use `->withoutParents()` (Laravel 12 and later) or pass the key yourself (`make(['user_id' => null])`), then attach a made parent with `->setRelation('user', User::factory()->make())`.
-- **Other connections aren't guarded.** The guard watches the default connection only. If a model in the preview uses another connection (`$connection = 'tenant'`), check by reading its factory that `make()` saves nothing there.
 - **A query in the layout** (a view composer loading the nav's categories, a `Cache::remember` with the `database` cache store) fails every state. Don't loosen the guard. Use a layout that doesn't query, if the app has one. Otherwise stop and tell the user which query runs, and ask how to give the layout made-up data in previews, for example by having that composer skip `__preview/*` requests.
 - **`loading`.** A Blade page has no pending state of its own. Render the placeholder the page shows while it waits (a skeleton, a disabled "Saving…" button, an `aria-busy` region), or follow the matrix rule for a state the component can't show.
-- **Form errors.** For a form whose `error` state is validation messages, share an error bag in that state's closure: `view()->share('errors', (new \Illuminate\Support\ViewErrorBag)->put('default', new \Illuminate\Support\MessageBag(['email' => ['That email is already taken.']])))`.
+- **Form errors.** For a form whose `error` state is validation messages, share an error bag in that state's closure: `view()->share('errors', (new \Illuminate\Support\ViewErrorBag)->put('default', new \Illuminate\Support\MessageBag(['email' => ['That email is already taken.']])))`. The component's own `@error` and `$errors` see it. An error summary in the layout doesn't, because the layout's data is gathered before the state renders. Say so in the critique if the page has one.
 
 **Prove the exclusion** after installing, before recording the answer. Don't record `yes` until both pass:
-- `php artisan route:list --path=__preview` lists the route, and `APP_ENV=production php artisan route:list --path=__preview` says the app has no matching routes. A cached config (`bootstrap/cache/config.php`) pins the environment, and cached routes (`bootstrap/cache/routes-v7.php`) are listed whatever the environment, so run both checks without either. If one exists, ask before running `php artisan optimize:clear`.
-- Start the app with the launch command, then load `/__preview/none`: it shows the harness's "No preview named none" message, not Laravel's 404 page. A 404 means the app isn't running with `APP_ENV=local`. Stop the app afterwards.
+- `php artisan route:list --path=__preview` lists the route, and `APP_ENV=production php artisan route:list --path=__preview` says the app has no matching routes. A cached config (`bootstrap/cache/config.php`) pins the environment, and cached routes (`bootstrap/cache/routes-v7.php`) are listed whatever the environment, so run both checks without either. If one exists, ask before running `php artisan config:clear` and `php artisan route:clear`, and tell the user to rebuild them afterwards if they keep them on purpose.
+- Start the app (with the verifier's Launch section, or the launch command from step 5; if there's neither, ask the user for one, and confirm the command before running it). Load `/__preview/none` from the app's own URL: it shows the harness's "No preview named none" message, which also proves the database guard and the made-up user work. A Laravel error means the user model or its factory needs adapting in `routes/preview.php`. See the 404 note below for a 404. Stop the app afterwards.
+
+**A 404 from the route** has three usual causes: the app isn't running with `APP_ENV=local`, a route cache (`bootstrap/cache/routes-v7.php`) from before the install, or a URL on Vite's dev server instead of the app's.
 
 ## The matrix file
 
