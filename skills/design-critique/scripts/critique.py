@@ -59,8 +59,19 @@ def merge_rubric(rubric, extra):
     return rubric.rstrip("\n") + "\n\n## Added for this repo\n\n| ID | Check | Typical severity |\n|---|---|---|\n" + "\n".join(rows) + "\n"
 
 
-def brief(run, inventory, rubric, extra, neighbours, direction=""):
-    """Build the critic's folder: screenshots, manifest, rubric and house rules. Never code."""
+DRIFT_ROW = ("| `direction.drift` | The screen matches the approved direction's screenshot of the same state and width in "
+             "`approved/`: no element missing or added, and the same components, layout, density, hierarchy and colours. "
+             "| S2 |")
+DRIFT_CONTEXT = """
+# Approved
+`approved/` holds the approved direction's screenshots, named like the files in `shots/`. Compare each shot with its
+approved counterpart and report each visible difference as `direction.drift`, citing the screenshot in `shots/`.
+"""
+
+
+def brief(run, inventory, rubric, extra, neighbours, direction="", approved=None):
+    """Build the critic's folder: screenshots, manifest, rubric and house rules. Never code. With `approved` (the run
+    folder of the direction the user picked), the critic also gets its screenshots and judges drift from them."""
     run = Path(run)
     critic = run / "critic"
     shutil.rmtree(critic, ignore_errors=True)
@@ -72,11 +83,17 @@ def brief(run, inventory, rubric, extra, neighbours, direction=""):
         (critic / "neighbours").mkdir()
         for number, png in enumerate(map(Path, neighbours), 1):
             shutil.copyfile(png, critic / "neighbours" / f"{number}-{png.name}")
+    if approved:
+        (critic / "approved").mkdir()
+        for shot in json.loads((Path(approved) / "manifest.json").read_text())["shots"]:
+            shutil.copyfile(Path(approved) / shot["file"], critic / "approved" / Path(shot["file"]).name)
+        extra = (extra or "") + "\n" + DRIFT_ROW + "\n"
     (critic / "manifest.json").write_text(json.dumps(manifest, indent=2))
     (critic / "rubric.md").write_text(merge_rubric(rubric, extra))
     (critic / "context.md").write_text(
         "# House rules\n" + section(inventory, "Rules") + "\n# Rubric overrides\n" + section(inventory, "Rubric overrides")
         + ("\n# Direction\n" + direction if direction else "")
+        + (DRIFT_CONTEXT if approved else "")
     )
     return critic
 
@@ -219,6 +236,7 @@ def main(argv=None):
     b.add_argument("--extra", help="extra rubric rows from installed design skills")
     b.add_argument("--neighbours", nargs="*", default=[])
     b.add_argument("--direction", help="the design direction this screen was built to, from /design's brief")
+    b.add_argument("--approved", help="run folder of the approved direction, to check the screen for drift from it")
     r = sub.add_parser("review", help="validate, suppress and rank the critic's findings -> RUN/findings.json")
     r.add_argument("--findings", required=True)
     for s in (g, b, r):
@@ -228,6 +246,8 @@ def main(argv=None):
     for given in (getattr(a, name, None) for name in ("components", "direction", "rubric", "extra", "findings")):
         if given and not Path(given).is_file():
             p.error(f"no such file: {given}")
+    if getattr(a, "approved", None) and not (Path(a.approved) / "manifest.json").is_file():
+        p.error(f"no manifest.json in {a.approved}")
     run, inventory = Path(a.run), read(a.inventory)
 
     if a.cmd == "gates":
@@ -245,7 +265,7 @@ def main(argv=None):
         if a.strict and (axe or tokens or skipped or blocked):
             raise SystemExit(1)
     elif a.cmd == "brief":
-        print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours, read(a.direction)))
+        print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours, read(a.direction), a.approved))
     else:
         result = review_findings(run / "critic", inventory, json.loads(read(a.findings)))
         (run / "findings.json").write_text(json.dumps(result, indent=2))

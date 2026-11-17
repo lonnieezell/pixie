@@ -184,6 +184,34 @@ class BriefTest(unittest.TestCase):
             self.assertFalse((critic / "neighbours").exists())
             self.assertTrue((critic / "shots" / "default-390.png").exists())
 
+    def test_approved_direction_lets_the_critic_report_drift(self):
+        drift = finding(rubric="direction.drift",
+                        observed="The approved summary card above the table is missing from the production screen.")
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            run, _ = make_run(d)
+            approved = root / "winner"
+            (approved / "shots").mkdir(parents=True)
+            (approved / "manifest.json").write_text(json.dumps(MANIFEST))
+            for shot in MANIFEST["shots"]:
+                (approved / shot["file"]).write_bytes(b"\x89PNG")
+            (root / "rubric.md").write_text(RUBRIC)
+            (root / "found.json").write_text(json.dumps([drift]))
+            base = ["--run", str(run), "--inventory", str(root / "none.md")]
+
+            C.main(["brief", *base, "--rubric", str(root / "rubric.md")])
+            C.main(["review", *base, "--findings", str(root / "found.json")])
+            self.assertEqual(json.loads((run / "findings.json").read_text())["rejected"][0]["reason"],
+                             "unknown rubric item")
+
+            C.main(["brief", *base, "--rubric", str(root / "rubric.md"), "--approved", str(approved)])
+            C.main(["review", *base, "--findings", str(root / "found.json")])
+            self.assertEqual(len(json.loads((run / "findings.json").read_text())["accepted"]), 1)
+            critic = run / "critic"
+            self.assertEqual(sorted(p.name for p in (critic / "approved").iterdir()),
+                             ["default-1280.png", "default-390.png"])
+            self.assertIn("approved/", (critic / "context.md").read_text())
+
 
 def finding(**over):
     f = {
@@ -311,6 +339,7 @@ class CliTest(unittest.TestCase):
                          ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--direction", f"{d}/gone.md"],
                          ["brief", "--run", str(run), "--rubric", f"{d}/gone.md"],
                          ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--extra", f"{d}/gone.md"],
+                         ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--approved", f"{d}/gone"],
                          ["review", "--run", str(run), "--findings", f"{d}/gone.json"]):
                 with self.subTest(argv[0]), self.assertRaises(SystemExit) as exit:
                     C.main(argv)
