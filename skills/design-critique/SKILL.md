@@ -6,13 +6,13 @@ disable-model-invocation: true
 
 # Design critique
 
-Give a ranked, evidence-backed critique of one screen as it looks in the running app. The skill captures screenshots, runs scripted gates, has one code-blind critic judge the screenshots, saves a report, and then asks the user what to do with it. **Nothing is edited or filed before the user picks fix, file or leave.** The one exception is a React component's preview (step 0), which the capture needs.
+Give a ranked, evidence-backed critique of one screen as it looks in the running app. The skill captures screenshots, runs scripted gates, has one code-blind critic judge the screenshots, saves a report, and then asks the user what to do with it. **Nothing is edited or filed before the user picks fix, file or leave.** The one exception is a React or Blade component's preview (step 0), which the capture needs.
 
 `SCRIPTS` below is `${CLAUDE_SKILL_DIR}/scripts`. `critique.py` needs Python 3. `capture.mjs` needs Node and the Pixie Playwright cache (see step 2).
 
 ## 0. Inputs
 
-The user names a route (`/orders`), a full URL, or a component. For a component in a React repo, see **A component in a React repo** below. For any other component, find the screens that render it and ask which one to capture. Also take any states the user names ("with the menu open", "after a failed save"). Work out the steps that reach each state from the page as it loads, using stable selectors (ARIA labels, `data-*` attributes, visible text) from the code. Write them as a states file:
+The user names a route (`/orders`), a full URL, or a component. For a component in a React repo, or a component or partial in a Laravel Blade repo, see **A component in a React or Blade repo** below. For any other component, find the screens that render it and ask which one to capture. Also take any states the user names ("with the menu open", "after a failed save"). Work out the steps that reach each state from the page as it loads, using stable selectors (ARIA labels, `data-*` attributes, visible text) from the code. Write them as a states file:
 
 ```json
 [
@@ -24,8 +24,8 @@ The user names a route (`/orders`), a full URL, or a component. For a component 
 
 Steps are `click`, `fill`, `press`, `hover` and `waitFor`. Always keep `default`.
 
-**A component in a React repo** is captured from its preview instead, in every state of the state matrix. [preview-harness.md](../design-setup/references/preview-harness.md) (in `${CLAUDE_SKILL_DIR}/../design-setup/references/`) describes previews, the matrix, fixtures and temporary mode. Read it, then:
-- Find the component's preview where the inventory's `## Preview surface` says previews live: a stories file with the six state stories, or `previews/<slug>.preview.tsx` in the harness. If it has none, write one. If the surface is `temporary` (or the inventory is missing), build the temporary structure for this run as the reference describes, once `RUN` exists (below). Step 9 removes it.
+**A component in a React or Blade repo** (a Blade component or partial, in a Laravel Blade repo) is captured from its preview instead, in every state of the state matrix. [preview-harness.md](../design-setup/references/preview-harness.md) (in `${CLAUDE_SKILL_DIR}/../design-setup/references/`) describes previews, the matrix, fixtures and temporary mode. Read it, then:
+- Find the component's preview where the inventory's `## Preview surface` says previews live: a stories file with the six state stories, `previews/<slug>.preview.tsx` in the React harness, or `resources/previews/<slug>.php` in the Blade harness. If it has none, write one. If the surface is `temporary` (or the inventory is missing), build the temporary structure for this run as the reference describes, once `RUN` exists (below). Step 9 removes it.
 - States the user names become interaction states, each starting from the preview state it fits (usually `typical`).
 - Write `RUN/matrix.json` from the preview. Skip the states file.
 

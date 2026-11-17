@@ -167,9 +167,9 @@ Catalogues the design system a repo already has, so design work reuses it instea
 4. Finds markup repeated across views, with a canonical example, a count and a suggestion for a component to extract. It only suggests. It never refactors.
 5. Sets the Baseline target from `browserslist`, or a Baseline line in `CLAUDE.md` or `AGENTS.md`. Otherwise it asks, with Widely available as the default.
 6. Shows a summary, asks only what it couldn't work out, then writes the inventory.
-7. Makes each offer once and records your answer in the inventory: run `create-verifier` if there's no verification skill; install Playwright and axe-core into `~/.cache/pixie/playwright`; if Modern Web Guidance is installed, add the Baseline target line to `CLAUDE.md`. If it isn't installed, it mentions it once. On a React repo, it also offers the preview harness (below).
+7. Makes each offer once and records your answer in the inventory: run `create-verifier` if there's no verification skill; install Playwright and axe-core into `~/.cache/pixie/playwright`; if Modern Web Guidance is installed, add the Baseline target line to `CLAUDE.md`. If it isn't installed, it mentions it once. On a React or Laravel Blade repo, it also offers the preview harness (below).
 
-**Preview harness (React):** a preview renders one component in every state of its **state matrix**, using fixture data, so `design-critique` can check states a live page rarely shows. Every preview must declare all six states:
+**Preview harness (React and Laravel Blade):** a preview renders one component (or, in Blade, a partial) in every state of its **state matrix**, using fixture data, so `design-critique` can check states a live page rarely shows. Every preview must declare all six states:
 
 | State | Shows |
 |---|---|
@@ -185,6 +185,13 @@ A preview missing any of them is rejected. A preview can add **interaction state
 If you accept the offer, previews are kept and committed. With Storybook, they're stories, and no route is added. Without Storybook, it adds a dev-only `/__preview/<slug>?state=<name>` route, then proves a production build doesn't serve it: the code is left out of the build, or the URL returns 404. If you decline, `design-critique` builds the same structure (a stories file, or the route) for one run and removes it afterwards, checking `git status` is back to how it was. On Next, a preview URL returns 404 in production but its code is still compiled. With Vite and Inertia, the preview code is left out of the build.
 
 Fixtures come from the app's own JS factories when it has them, otherwise they're written by hand. They match the props or API resources production passes. They never use real data.
+
+**Laravel Blade specifics:** Blade previews always use the route, never Storybook. An Inertia-React app uses the React harness instead.
+
+- **Files.** `routes/web.php` loads `routes/preview.php` only when `APP_ENV` is `local`, so the route returns 404 in every other environment. Setup proves this with `php artisan route:list` in `local` and `production`. Each preview is a PHP file in `resources/previews/<slug>.php` that returns the states as closures rendering the component or partial. `resources/views/__preview.blade.php` puts the rendered state inside the app's real layout, so it gets the app's Bootstrap or Tailwind CSS through `@vite` or `mix()`.
+- **Fixtures.** They come from the app's model factories with `make()`, seeded so every load shows the same data, or are written by hand. The harness rejects any database query while a preview renders, and shows the query as the error. That catches a `create()`, or a factory that saves its parent model, before it can write anything.
+- **Signed-in user.** A layout that shows the signed-in user gets a made-up one that's never saved.
+- **Loading state.** Blade pages have no loading state of their own, so the preview shows the placeholder the page shows while it waits (a skeleton, a busy button).
 
 If it finds no tokens and no components, it offers to write a minimal token set for you.
 
@@ -208,7 +215,7 @@ Gives a ranked, evidence-backed critique of one existing screen, judged from scr
 **How it works:**
 
 1. Gets the app running. With a verification skill, its Launch, Doctor, sign-in and Cleanup sections run the app, unless `liveVerify.design` is `false` (see [Live checks](live-checks.md)). Otherwise it recommends `create-verifier`, then uses the launch fallback from the design inventory, or a command you confirm.
-2. Captures the screen at 390 and 1280 wide, in each state you named, plus 1–2 neighbouring screens for comparison. Screenshots are never wider than 1280px. A component in a React repo is captured from its preview instead (see the preview harness under `design-setup`): every state at 1280 wide, plus `typical` and `overflow` at 390. It writes the preview if there isn't one.
+2. Captures the screen at 390 and 1280 wide, in each state you named, plus 1–2 neighbouring screens for comparison. Screenshots are never wider than 1280px. A component in a React repo, or a component or partial in a Laravel Blade repo, is captured from its preview instead (see the preview harness under `design-setup`): every state at 1280 wide, plus `typical` and `overflow` at 390. It writes the preview if there isn't one.
 3. Runs two scripted gates: axe accessibility checks on every screenshot, and a check for raw hex colours and Tailwind arbitrary values (`text-[#333]`) in the files that render the screen. The inventory's token files are skipped.
 4. Hands the screenshots to the `design-critic` agent, with the rubric and the inventory's house rules. The critic never sees the code.
 5. Keeps only findings that cite a rubric item, a screenshot, a state and a width with a concrete observation. It drops vague ones, and suppresses any finding for a rubric item your overrides drop.
@@ -220,7 +227,7 @@ Gives a ranked, evidence-backed critique of one existing screen, judged from scr
 
 **Limits:**
 
-- Nothing is edited or filed until you choose, except a missing preview for a React component, which it writes before capture. Fixes to CSS and tokens are made directly. Behaviour changes go through `tdd`.
+- Nothing is edited or filed until you choose, except a missing preview for a React or Blade component, which it writes before capture. Fixes to CSS and tokens are made directly. Behaviour changes go through `tdd`.
 - It critiques what's on screen. It can't judge behaviour it can't capture as a state.
 - Filing needs `gh`.
 
