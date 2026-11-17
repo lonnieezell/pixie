@@ -14,7 +14,7 @@ Write one test per state in the preview's matrix: the six required states, any e
 | Laravel Blade | View tests (`$this->blade()`, `$this->component()`, `$this->view()`), or a feature test (`$this->get()`) for a page |
 | CodeIgniter 4 | Feature tests with `FeatureTestTrait` for a page. For a view cell or partial, render it (`view_cell()`, `view()`) in a test and check the output. |
 
-Put them where the repo keeps its tests for that kind of file, named for the outcome. Each test asserts what the user gets in that state, not how the markup is built:
+Put them where the repo keeps its tests for that kind of file. Name each test after its state, then the outcome: `"empty: shows the add-order action"`, or `test_empty_shows_the_add_order_action` in PHP, so each state's test can be found by its name. Each test asserts what the user gets in that state, not how the markup is built:
 
 | State | Asserts, for example |
 |---|---|
