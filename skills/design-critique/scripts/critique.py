@@ -59,19 +59,9 @@ def merge_rubric(rubric, extra):
     return rubric.rstrip("\n") + "\n\n## Added for this repo\n\n| ID | Check | Typical severity |\n|---|---|---|\n" + "\n".join(rows) + "\n"
 
 
-DRIFT_ROW = ("| `direction.drift` | The screen matches the approved direction's screenshot of the same state and width in "
-             "`approved/`: no element missing or added, and the same components, layout, density, hierarchy and colours. "
-             "| S2 |")
-DRIFT_CONTEXT = """
-# Approved
-`approved/` holds the approved direction's screenshots, named like the files in `shots/`. Compare each shot with its
-approved counterpart and report each visible difference as `direction.drift`, citing the screenshot in `shots/`.
-"""
-
-
 def brief(run, inventory, rubric, extra, neighbours, direction="", approved=None):
     """Build the critic's folder: screenshots, manifest, rubric and house rules. Never code. With `approved` (the run
-    folder of the direction the user picked), the critic also gets its screenshots and judges drift from them."""
+    folder of the direction the user picked), the critic also gets its screenshots, to judge drift from."""
     run = Path(run)
     critic = run / "critic"
     shutil.rmtree(critic, ignore_errors=True)
@@ -87,13 +77,11 @@ def brief(run, inventory, rubric, extra, neighbours, direction="", approved=None
         (critic / "approved").mkdir()
         for shot in json.loads((Path(approved) / "manifest.json").read_text())["shots"]:
             shutil.copyfile(Path(approved) / shot["file"], critic / "approved" / Path(shot["file"]).name)
-        extra = (extra or "") + "\n" + DRIFT_ROW + "\n"
     (critic / "manifest.json").write_text(json.dumps(manifest, indent=2))
     (critic / "rubric.md").write_text(merge_rubric(rubric, extra))
     (critic / "context.md").write_text(
         "# House rules\n" + section(inventory, "Rules") + "\n# Rubric overrides\n" + section(inventory, "Rubric overrides")
         + ("\n# Direction\n" + direction if direction else "")
-        + (DRIFT_CONTEXT if approved else "")
     )
     return critic
 
@@ -112,7 +100,7 @@ def rubric_ids(rubric):
     return set(first_column(rubric))
 
 
-def rejection(f, ids, shots):
+def rejection(f, ids, shots, approved):
     for field in REQUIRED:
         value = f.get(field)
         if value in (None, ""):
@@ -127,6 +115,8 @@ def rejection(f, ids, shots):
         return "observed is too vague"
     if f["rubric"] not in ids:
         return "unknown rubric item"
+    if f["rubric"] == "direction.drift" and not approved:
+        return "no approved screenshots to drift from"
     shot = shots.get(f["screenshot"])
     if not shot:
         return "screenshot not captured"
@@ -149,7 +139,7 @@ def review_findings(critic, inventory, findings):
     for f in findings:
         if isinstance(f.get("rubric"), str) and f["rubric"] in drop:
             result["suppressed"].append(f)
-        elif reason := rejection(f, ids, shots):
+        elif reason := rejection(f, ids, shots, (critic / "approved").is_dir()):
             result["rejected"].append({"finding": f, "reason": reason})
         else:
             result["accepted"].append(f)

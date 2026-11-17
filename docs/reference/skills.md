@@ -221,7 +221,7 @@ Gives a ranked, evidence-backed critique of one existing screen, judged from scr
 
 **Limits:**
 
-- Nothing is edited or filed until you choose, except a missing preview for a React, Blade or CodeIgniter component, which it writes before capture. Fixes to CSS and tokens are made directly. Behaviour changes go through the same test-first flow `design` builds its winner with: `tdd` when it's installed, and a short red-green loop when it isn't.
+- Nothing is edited or filed until you choose, except a missing preview for a React, Blade or CodeIgniter component, which it writes before capture. Fixes to CSS and tokens are made directly. Behaviour changes go test-first, the way `design` builds its winner.
 - It critiques what's on screen. It can't judge behaviour it can't capture as a state.
 - Filing needs `gh`.
 
@@ -243,7 +243,7 @@ Explores 2–4 design directions for one component, section or page, renders eac
 6. Runs one `design-critic` per direction, in parallel, each seeing only its own screenshots, the neighbouring screens, the rubric and the direction. No code. It fixes serious findings within each direction, for 2 rounds at most.
 7. You pick one direction, ask for a blend, or send it back to the brief.
 8. Deletes the losing directions' code.
-9. Builds the winner into production code, test-first: one behaviour test per state of its matrix, each failing before its code is written, through Pixie's `tdd` skill (or a short built-in red-green loop without it). Tests check outcomes, such as the empty state's call to action, never markup or visual snapshots. For overlays, tooltips, forms and similar platform behaviour, a catalogued component always wins. Modern Web Guidance, if installed, informs only what the inventory doesn't cover, within your Baseline target. Then it points the preview at the production component, captures and gates it again, and runs one critic pass that compares it with the screenshots you picked and reports drift.
+9. Builds the winner into production code test-first, one behaviour test per state (through `tdd`, or a short red-green loop without it). A catalogued component always wins over a Modern Web Guidance suggestion. Then it captures the result and has the critic report drift from your pick.
 10. Writes a dated decision record, including the production files, tests and drift.
 
 **Capture tools:** the same as `design-critique`, and the same fallbacks.

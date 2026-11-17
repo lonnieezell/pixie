@@ -38,14 +38,14 @@ Find elements the way a user does: by role, label or text (`getByRole`, `assertS
 3. Write the least production code that makes it pass. Run it, then every test written so far.
 4. Keep the failing and the passing line of each run for the report.
 
-A state's test that passes the first time it runs doesn't prove anything. Make it assert what's particular to that state (the empty state's call to action, not only "renders"), and run it again. Each state ends with one test that failed before its code was written and passes after. Run the repo's whole test suite once at the end.
+A state's test that passes the first time it runs doesn't prove anything. Make it assert what's particular to that state (the empty state's call to action, not only "renders"), and run it again. Each state ends with one test that failed before its code was written and passes after. At the end, run the new tests with the existing tests of the screen they're used on. The full suite is CI's job.
 
 ## 3. Platform behaviour: inventory first
 
 Overlays, tooltips, popovers, menus, forms and validation, transitions and responsive containers:
 
 1. **A catalogued component wins.** If the inventory has a `preferred` component for it (a Radix `Dialog`, a Bootstrap modal, an `<x-tooltip>`), use it, even where a platform feature could do the job (`<dialog>`, `popover`, `:user-invalid`, container queries).
-2. **Modern Web Guidance**, if it's installed as a skill or plugin, then informs new components and the inside of components being built: which platform feature to use, and the fallback it needs. Never run `npx modern-web-guidance` to get it.
+2. **Modern Web Guidance**, if it's installed (detected as `design-setup` step 7, offer 3, says), then informs new components and the inside of components being built: which platform feature to use, and the fallback it needs. Never run `npx modern-web-guidance` to get it.
 3. Stay within the inventory's `## Baseline target`. A feature newer than the target needs the fallback Modern Web Guidance gives, or a catalogued component that already handles it.
 
 Without Modern Web Guidance, use the inventory and the Baseline target alone. Every other step is the same.

@@ -167,10 +167,10 @@ For every direction except the winner (`WINNER` below), delete each `created` pa
 
 ## 9. Converge
 
-Build the winner into production code, test-first, as [references/convergence.md](references/convergence.md) describes: one behaviour test per state of `RUN/directions/WINNER/matrix.json`, red then green, with the inventory's components first for platform behaviour.
+Build the winner into production code, test-first, as `CRITIQUE/references/convergence.md` describes: one behaviour test per state of `RUN/directions/WINNER/matrix.json`, red then green.
 
 - **Where it goes:** the app's real locations, never a `previews` folder. Components go where the inventory's `Path / import` column puts components of their kind, and the component is used on the screen the frame names. A new component the brief approved moves out of the direction's `previews` folder to its real place, under the name the gates checked. Ask if it isn't clear where something belongs.
-- **The preview is the visual reference.** Build to match its screenshots (`RUN/directions/WINNER/shots/`). The tests decide the behaviour.
+- **The preview is the visual reference.** Build from its source, whose components move into production anyway. The tests decide the behaviour, and the critic below checks the look. Don't view the screenshots yourself.
 - **Point the preview at production.** Once every state's test passes, change the winner's preview to render the production component with the same fixtures, and delete its copies of the new components from the `previews` folder. The preview stays as the component's matrix.
 
 **Check the result.** Gate the production files (the components and styles this step wrote), capture the preview into `RUN/production` with the winner's matrix, then gate again with its `axe.json`. Fix and capture again until the gates pass, as in step 5:
@@ -184,9 +184,10 @@ Then run **one critic pass** against the approved direction. `--approved` gives 
 
 ```bash
 python3 CRITIQUE/scripts/critique.py brief --run "RUN/production" --rubric CRITIQUE/references/rubric.md \
-  [--extra RUN/extra-rubric.md] --direction RUN/directions/WINNER/direction.md --approved RUN/directions/WINNER \
-  [--neighbours RUN/neighbour-*/shots/*.png]
+  [--extra RUN/extra-rubric.md] --direction RUN/directions/WINNER/direction.md --approved RUN/directions/WINNER
 ```
+
+No neighbours this time: step 6 already compared the winner with them.
 
 Start one `pixie:design-critic` agent with only the absolute path of `RUN/production/critic`, save its reply to `RUN/production/critic-findings.json` and run `critique.py review` on it, as in step 6. Accepted `direction.drift` findings are the drift: where production no longer looks like what the user picked. Any other accepted finding is a problem production brought in. Don't fix them in this pass. Print both lists, by severity, with their screenshots, and put them in the decision record.
 

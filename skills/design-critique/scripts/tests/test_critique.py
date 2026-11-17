@@ -190,27 +190,21 @@ class BriefTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             run, _ = make_run(d)
-            approved = root / "winner"
-            (approved / "shots").mkdir(parents=True)
-            (approved / "manifest.json").write_text(json.dumps(MANIFEST))
-            for shot in MANIFEST["shots"]:
-                (approved / shot["file"]).write_bytes(b"\x89PNG")
-            (root / "rubric.md").write_text(RUBRIC)
+            approved, _ = make_run(root / "winner")
+            (root / "rubric.md").write_text(RUBRIC + "| `direction.drift` | Matches the approved shot. | S2 |\n")
             (root / "found.json").write_text(json.dumps([drift]))
             base = ["--run", str(run), "--inventory", str(root / "none.md")]
 
             C.main(["brief", *base, "--rubric", str(root / "rubric.md")])
             C.main(["review", *base, "--findings", str(root / "found.json")])
             self.assertEqual(json.loads((run / "findings.json").read_text())["rejected"][0]["reason"],
-                             "unknown rubric item")
+                             "no approved screenshots to drift from")
 
             C.main(["brief", *base, "--rubric", str(root / "rubric.md"), "--approved", str(approved)])
             C.main(["review", *base, "--findings", str(root / "found.json")])
             self.assertEqual(len(json.loads((run / "findings.json").read_text())["accepted"]), 1)
-            critic = run / "critic"
-            self.assertEqual(sorted(p.name for p in (critic / "approved").iterdir()),
+            self.assertEqual(sorted(p.name for p in (run / "critic" / "approved").iterdir()),
                              ["default-1280.png", "default-390.png"])
-            self.assertIn("approved/", (critic / "context.md").read_text())
 
 
 def finding(**over):
