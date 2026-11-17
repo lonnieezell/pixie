@@ -156,7 +156,7 @@ If the check fails, fix the mount and check again. Don't record `yes` until it p
 
 ## Laravel Blade
 
-The same contract, served by Laravel: `/__preview/<slug>?state=<name>`, the six required states, [the markers](#the-state-matrix) and the same matrix file. A preview renders a Blade component (`<x-order-list>`) or a partial (`@include('orders._row')`) inside the app's own layout, so the page gets the app's real CSS and JS through `@vite` or `mix()`, whether that's Bootstrap or Tailwind.
+The same contract, served by Laravel: `/__preview/<slug>?state=<name>`, the six required states, [the markers](#the-state-matrix) and the same matrix file. A preview renders a Blade component (`<x-order-list>`) or a partial (`@include('orders._row')`) inside the app's own layout, so the page gets the app's real CSS and JS through `@vite` or `mix()`, whether that's Bootstrap or Tailwind. Those assets must be served too: run the repo's dev script (`npm run dev`) alongside the app, or build them first. With neither, `@vite` throws and every state shows the error.
 
 Four pieces:
 
@@ -198,11 +198,11 @@ A partial renders with `view('orders._row', ['order' => Order::factory()->make()
 @extends('layouts.app')
 
 @section('content')
-    <div data-pixie-preview>{!! $html !!}</div>
+    <div data-pixie-preview>{!! $render() !!}</div>
 @endsection
 ```
 
-For a component layout, wrap it instead: `<x-app-layout><div data-pixie-preview>{!! $html !!}</div></x-app-layout>`.
+For a component layout, wrap it instead: `<x-app-layout><div data-pixie-preview>{!! $render() !!}</div></x-app-layout>`.
 
 **`routes/preview.php`**, which renders one state and refuses an incomplete preview:
 
@@ -227,7 +227,8 @@ Route::get('/__preview/{slug}', function (string $slug) {
         return $problem("No preview named {$slug}");
     }
 
-    // Previews never read or write the database: any query while rendering fails and is shown as a problem.
+    // Previews never read or write the database: any query on the default connection while rendering fails
+    // and is shown as a problem.
     $rendering = true;
     DB::beforeExecuting(function (string $query) use (&$rendering) {
         if ($rendering) {
@@ -240,7 +241,8 @@ Route::get('/__preview/{slug}', function (string $slug) {
         // A made-up user, never saved, for a layout that shows who's signed in.
         auth()->setUser(User::factory()->make(['name' => 'Preview User']));
 
-        $states = (require $file)['states'];
+        // Required in its own scope, so the preview's variables can't overwrite the harness's.
+        $states = (static fn () => require $file)()['states'];
         $missing = array_diff($required, array_keys($states));
         if ($missing) {
             return $problem("Preview {$slug} is missing required states: ".implode(', ', $missing));
@@ -249,8 +251,9 @@ Route::get('/__preview/{slug}', function (string $slug) {
             return $problem("Preview {$slug} has no state {$state}");
         }
 
-        // Rendered here, inside the guard, so the layout can't query the database either.
-        return response(view('__preview', ['html' => $states[$state]()])->render());
+        // Rendered here, inside the guard, so the layout can't query the database either. The view calls the
+        // state while the layout renders, so the component's @push and @once reach the layout's @stack.
+        return response(view('__preview', ['render' => $states[$state]])->render());
     } catch (Throwable $e) {
         return $problem("Preview {$slug} failed to render: {$e->getMessage()}");
     } finally {
@@ -273,12 +276,14 @@ if (app()->environment('local')) {
 
 Writing Blade previews:
 - **A query in a preview** shows as the error. The usual cause is a factory whose definition has a parent factory (`'user_id' => User::factory()`): `make()` still saves that parent. Use `->withoutParents()` (Laravel 12 and later) or pass the key yourself (`make(['user_id' => null])`), then attach a made parent with `->setRelation('user', User::factory()->make())`.
+- **Other connections aren't guarded.** The guard watches the default connection only. If a model in the preview uses another connection (`$connection = 'tenant'`), check by reading its factory that `make()` saves nothing there.
+- **A query in the layout** (a view composer loading the nav's categories, a `Cache::remember` with the `database` cache store) fails every state. Don't loosen the guard. Use a layout that doesn't query, if the app has one. Otherwise stop and tell the user which query runs, and ask how to give the layout made-up data in previews, for example by having that composer skip `__preview/*` requests.
 - **`loading`.** A Blade page has no pending state of its own. Render the placeholder the page shows while it waits (a skeleton, a disabled "Saving…" button, an `aria-busy` region), or follow the matrix rule for a state the component can't show.
 - **Form errors.** For a form whose `error` state is validation messages, share an error bag in that state's closure: `view()->share('errors', (new \Illuminate\Support\ViewErrorBag)->put('default', new \Illuminate\Support\MessageBag(['email' => ['That email is already taken.']])))`.
 
 **Prove the exclusion** after installing, before recording the answer. Don't record `yes` until both pass:
-- `php artisan route:list --path=__preview` lists the route, and `APP_ENV=production php artisan route:list --path=__preview` says the app has no matching routes. A cached config (`bootstrap/cache/config.php`) pins the environment, so run both checks without one. If one exists, ask before running `php artisan config:clear`.
-- With the app running, a preview URL with a state that doesn't exist shows the harness's error message, not Laravel's error page.
+- `php artisan route:list --path=__preview` lists the route, and `APP_ENV=production php artisan route:list --path=__preview` says the app has no matching routes. A cached config (`bootstrap/cache/config.php`) pins the environment, and cached routes (`bootstrap/cache/routes-v7.php`) are listed whatever the environment, so run both checks without either. If one exists, ask before running `php artisan optimize:clear`.
+- Start the app with the launch command, then load `/__preview/none`: it shows the harness's "No preview named none" message, not Laravel's 404 page. A 404 means the app isn't running with `APP_ENV=local`. Stop the app afterwards.
 
 ## The matrix file
 
@@ -302,7 +307,7 @@ Paths resolve against `--url`, the origin that serves the preview route (or Stor
 
 ## Temporary mode
 
-When the answer is `no`, `/design-critique` builds the same structure for one run and removes it afterwards: a stories file when the repo has Storybook, otherwise the `/__preview` route.
+When the answer is `no`, `/design-critique` builds the same structure for one run and removes it afterwards: a stories file when a React repo has Storybook, otherwise the `/__preview` route.
 
 1. Before creating anything, save `git status --porcelain --untracked-files=all` to `RUN/status-before.txt`. Any existing file the harness must edit (the Vite entry file, `routes/web.php`) must be clean. If one isn't, stop and ask the user to commit it first.
 2. Create the files, and write each path to `RUN/temp-harness.txt`, marked `created` or `edited`.
