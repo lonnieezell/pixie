@@ -167,9 +167,9 @@ Catalogues the design system a repo already has, so design work reuses it instea
 4. Finds markup repeated across views, with a canonical example, a count and a suggestion for a component to extract. It only suggests. It never refactors.
 5. Sets the Baseline target from `browserslist`, or a Baseline line in `CLAUDE.md` or `AGENTS.md`. Otherwise it asks, with Widely available as the default.
 6. Shows a summary, asks only what it couldn't work out, then writes the inventory.
-7. Makes each offer once and records your answer in the inventory: run `create-verifier` if there's no verification skill; install Playwright and axe-core into `~/.cache/pixie/playwright`; if Modern Web Guidance is installed, add the Baseline target line to `CLAUDE.md`. If it isn't installed, it mentions it once. On a React or Laravel Blade repo, it also offers the preview harness (below).
+7. Makes each offer once and records your answer in the inventory: run `create-verifier` if there's no verification skill; install Playwright and axe-core into `~/.cache/pixie/playwright`; if Modern Web Guidance is installed, add the Baseline target line to `CLAUDE.md`. If it isn't installed, it mentions it once. On a React, Laravel Blade or CodeIgniter 4 repo, it also offers the preview harness (below).
 
-**Preview harness (React and Laravel Blade):** a preview renders one component (or, in Blade, a partial) in every state of its **state matrix**, using fixture data, so `design-critique` can check states a live page rarely shows. Every preview must declare all six states:
+**Preview harness (React, Laravel Blade and CodeIgniter 4):** a preview renders one component (or, in Blade, a partial; in CodeIgniter, a view cell or partial) in every state of its **state matrix**, using fixture data, so `design-critique` can check states a live page rarely shows. Every preview must declare all six states:
 
 | State | Shows |
 |---|---|
@@ -182,9 +182,9 @@ Catalogues the design system a repo already has, so design work reuses it instea
 
 A preview missing any of them is rejected. A preview can add **interaction states**, such as an open menu: steps (`click`, `fill`, `press`, `hover`, `waitFor`) replayed on one of its states before the screenshot, at desktop width or the widths it names (a mobile nav at 390). It can also add more states, such as `disabled`, which are captured too.
 
-If you accept the offer, previews are kept and committed. With Storybook, they're stories, and no route is added. Without Storybook, it adds a dev-only `/__preview/<slug>?state=<name>` route, then proves a production build doesn't serve it: the code is left out of the build, or the URL returns 404. If you decline, `design-critique` builds the same structure (a stories file, or the route) for one run and removes it afterwards, checking `git status` is back to how it was. On Next, a preview URL returns 404 in production but its code is still compiled. With Vite and Inertia, the preview code is left out of the build. On Laravel Blade, there's no Storybook option: `routes/web.php` loads the route only when `APP_ENV` is `local`, so it returns 404 in every other environment, and each preview (`resources/previews/<slug>.php`) renders inside the app's real layout, with its Bootstrap or Tailwind CSS.
+If you accept the offer, previews are kept and committed. With Storybook, they're stories, and no route is added. Without Storybook, it adds a dev-only `/__preview/<slug>?state=<name>` route, then proves a production build doesn't serve it: the code is left out of the build, or the URL returns 404. If you decline, `design-critique` builds the same structure (a stories file, or the route) for one run and removes it afterwards, checking `git status` is back to how it was. On Next, a preview URL returns 404 in production but its code is still compiled. With Vite and Inertia, the preview code is left out of the build. On Laravel Blade, there's no Storybook option: `routes/web.php` loads the route only when `APP_ENV` is `local`, so it returns 404 in every other environment, and each preview (`resources/previews/<slug>.php`) renders inside the app's real layout, with its Bootstrap or Tailwind CSS. On CodeIgniter 4, there's no Storybook option either: `app/Config/Routes.php` registers the route only when `ENVIRONMENT` is `development`, so it returns 404 in production and doesn't exist in `testing`, and each preview (`app/Previews/<slug>.php`) renders a view cell or partial inside the app's real layout. The debug toolbar is kept out of the screenshots.
 
-Fixtures come from the app's own factories when it has them (JS builders, or Laravel model factories with `make()`), otherwise they're written by hand. They match the props or API resources production passes. They never use real data. A Blade preview can't touch the app's databases: the harness rejects any query while the preview renders and shows the query as the error, which catches a `create()` before it writes anything.
+Fixtures come from the app's own factories when it has them (JS builders, Laravel model factories with `make()`, or a CodeIgniter model's `fake()` method through `Fabricator::make()`), otherwise they're written by hand. They match the props or API resources production passes. They never use real data, and seeders are never run. A Blade or CodeIgniter preview can't touch the app's databases: the harness stops any query while the preview renders and shows the query as the error, which catches a `create()` before it writes anything.
 
 If it finds no tokens and no components, it offers to write a minimal token set for you.
 
@@ -208,7 +208,7 @@ Gives a ranked, evidence-backed critique of one existing screen, judged from scr
 **How it works:**
 
 1. Gets the app running. With a verification skill, its Launch, Doctor, sign-in and Cleanup sections run the app, unless `liveVerify.design` is `false` (see [Live checks](live-checks.md)). Otherwise it recommends `create-verifier`, then uses the launch fallback from the design inventory, or a command you confirm.
-2. Captures the screen at 390 and 1280 wide, in each state you named, plus 1–2 neighbouring screens for comparison. Screenshots are never wider than 1280px. A component in a React repo, or a component or partial in a Laravel Blade repo, is captured from its preview instead (see the preview harness under `design-setup`): every state at 1280 wide, plus `typical` and `overflow` at 390. It writes the preview if there isn't one.
+2. Captures the screen at 390 and 1280 wide, in each state you named, plus 1–2 neighbouring screens for comparison. Screenshots are never wider than 1280px. A component in a React repo, a component or partial in a Laravel Blade repo, or a view cell or partial in a CodeIgniter 4 repo, is captured from its preview instead (see the preview harness under `design-setup`): every state at 1280 wide, plus `typical` and `overflow` at 390. It writes the preview if there isn't one.
 3. Runs two scripted gates: axe accessibility checks on every screenshot, and a check for raw hex colours and Tailwind arbitrary values (`text-[#333]`) in the files that render the screen. The inventory's token files are skipped.
 4. Hands the screenshots to the `design-critic` agent, with the rubric and the inventory's house rules. The critic never sees the code.
 5. Keeps only findings that cite a rubric item, a screenshot, a state and a width with a concrete observation. It drops vague ones, and suppresses any finding for a rubric item your overrides drop.
@@ -220,7 +220,7 @@ Gives a ranked, evidence-backed critique of one existing screen, judged from scr
 
 **Limits:**
 
-- Nothing is edited or filed until you choose, except a missing preview for a React or Blade component, which it writes before capture. Fixes to CSS and tokens are made directly. Behaviour changes go through `tdd`.
+- Nothing is edited or filed until you choose, except a missing preview for a React, Blade or CodeIgniter component, which it writes before capture. Fixes to CSS and tokens are made directly. Behaviour changes go through `tdd`.
 - It critiques what's on screen. It can't judge behaviour it can't capture as a state.
 - Filing needs `gh`.
 
