@@ -28,14 +28,15 @@ Every preview declares all six of these. A preview that lacks any of them is rej
 
 If the component has no way to show a state (no error prop, no loading prop), render it the way its parent would in that situation, and say so in a comment in the preview. Never leave a state out. A preview may add more states (`disabled`, `read-only`). They're captured too.
 
+**The markers.** Every harness marks its page for `capture.mjs`, which waits for one of two markers before going on: `data-pixie-preview` wraps a rendered state, and `data-pixie-preview-error` marks an error (no such preview or state, missing required states, a failed render). Errors are served with a 200, so the capture fails the shot when it sees that marker, instead of capturing an error message as a state.
+
 **Interaction states** are optional. Each one starts from a state's page and replays action steps before the screenshot, in the step format `/design-critique` uses (`click`, `fill`, `press`, `hover`, `waitFor`). For example, an open menu: `{"name": "menu open", "from": "typical", "steps": [{"click": "button[aria-label='Row actions']"}]}`. Use stable selectors: ARIA labels, `data-*` attributes, visible text. An interaction is captured at desktop width. One that only exists at another width, such as a mobile nav, names it: `"viewports": [390]`.
 
 ## Fixtures
 
-- Use the app's own JS factories when it has them (`test/factories`, `fishery`, `@faker-js/faker` builders, MSW handlers). Seed any randomness, so screenshots compare across runs.
-- In Blade, use the app's model factories (`database/factories`) with `make()`, which builds models in memory. Never `create()`, which saves them.
-- Otherwise write the fixtures by hand, next to the preview.
-- Shapes match what production passes: the component's prop types, or the API resource the page fetches (a Laravel `JsonResource`, an OpenAPI schema, the TypeScript type of the fetch result). Read the type; don't guess field names.
+- Use the app's own factories when it has them: JS builders in React (`test/factories`, `fishery`, `@faker-js/faker` builders, MSW handlers), model factories (`database/factories`) in Blade, always with `make()`, which builds models in memory, never `create()`, which saves them. Seed any randomness, so screenshots compare across runs.
+- Without factories, write the fixtures by hand, next to the preview.
+- Shapes match what production passes: the component's prop types, a Blade component's `@props` or class constructor, the variables a partial uses, or the API resource the page fetches (a Laravel `JsonResource`, an OpenAPI schema, the TypeScript type of the fetch result). Read the type; don't guess field names.
 - **Never real data.** Don't query a database, call a live API or copy rows from one. Made-up names and values only.
 
 ## Storybook
@@ -107,7 +108,7 @@ export const previews: Record<string, () => Promise<{ states: Record<string, () 
 };
 ```
 
-**`PreviewPage.tsx`**, which renders one state and refuses an incomplete preview. `capture.mjs` waits for one of its two markers before going on: `data-pixie-preview` wraps a rendered state, and `data-pixie-preview-error` marks an error. Errors are served with a 200, so the capture fails the shot when it sees that marker, instead of capturing an error message as a state.
+**`PreviewPage.tsx`**, which renders one state and refuses an incomplete preview, with the two markers.
 
 ```tsx
 import { type ReactNode, useEffect, useState } from "react";
@@ -155,7 +156,7 @@ If the check fails, fix the mount and check again. Don't record `yes` until it p
 
 ## Laravel Blade
 
-The same contract, served by Laravel: `/__preview/<slug>?state=<name>`, the six required states, the same two markers, and the same matrix file. A preview renders a Blade component (`<x-order-list>`) or a partial (`@include('orders._row')`) inside the app's own layout, so the page gets the app's real CSS and JS through `@vite` or `mix()`, whether that's Bootstrap or Tailwind.
+The same contract, served by Laravel: `/__preview/<slug>?state=<name>`, the six required states, [the markers](#the-state-matrix) and the same matrix file. A preview renders a Blade component (`<x-order-list>`) or a partial (`@include('orders._row')`) inside the app's own layout, so the page gets the app's real CSS and JS through `@vite` or `mix()`, whether that's Bootstrap or Tailwind.
 
 Four pieces:
 
@@ -167,22 +168,18 @@ Four pieces:
 use App\Models\Order;
 use Illuminate\Support\Facades\Blade;
 
-// make() builds models in memory. Never create(): the harness refuses any database query.
-$one = Order::factory()->count(1)->make();
-$eight = Order::factory()->count(8)->make();
-$many = Order::factory()->count(60)->make(['customer' => 'Maximiliana Featherstonehaugh-Wolfeschlegel']);
-
 $list = fn ($orders, array $extra = []) => Blade::render(
     '<x-order-list :orders="$orders" :error="$error" :loading="$loading" />',
     ['orders' => $orders, 'error' => null, 'loading' => false, ...$extra],
 );
 
+// Each request renders one state, so each state builds only its own data.
 return [
     'states' => [
         'empty' => fn () => $list(collect()),
-        'single' => fn () => $list($one),
-        'typical' => fn () => $list($eight),
-        'overflow' => fn () => $list($many),
+        'single' => fn () => $list(Order::factory()->count(1)->make()),
+        'typical' => fn () => $list(Order::factory()->count(8)->make()),
+        'overflow' => fn () => $list(Order::factory()->count(60)->make(['customer' => 'Maximiliana Featherstonehaugh-Wolfeschlegel'])),
         'error' => fn () => $list(collect(), ['error' => "We couldn't load your orders."]),
         'loading' => fn () => $list(collect(), ['loading' => true]),
     ],
@@ -192,7 +189,7 @@ return [
 ];
 ```
 
-A partial renders with `view('orders._row', ['order' => $one->first()])->render()`. Pass what production passes: read the component's `@props` or class constructor, or the variables the partial uses.
+A partial renders with `view('orders._row', ['order' => Order::factory()->make()])->render()`.
 
 **`resources/views/__preview.blade.php`**, which puts the state inside the app's real layout. Use the layout the component's screens use, from the inventory's layout shells:
 
@@ -274,19 +271,14 @@ if (app()->environment('local')) {
 }
 ```
 
-Why it's built this way:
-- **The gate is `APP_ENV`.** Every other environment (`production`, `staging`, `testing`) never registers the route, so a preview URL returns 404. Production compiles the preview's Blade view with the rest if it runs `view:cache`, but never serves it.
-- **No database.** The guard rejects every query on the default connection while a preview renders, including the layout's, and shows the query as the problem. The session and anything after the response are unaffected. The usual cause is a factory whose definition has a parent factory (`'user_id' => User::factory()`): `make()` still saves that parent. Use `->withoutParents()` (Laravel 12 and later) or pass the key yourself (`make(['user_id' => null])`), then attach a made parent with `->setRelation('user', User::factory()->make())`.
-- **Seeded data.** `fake()->seed(1)` seeds the generator the factories use, so a reload renders the same names.
-- **No pending state on the server.** A Blade page has no `loading` of its own. Render the placeholder the page shows while it waits (a skeleton, a disabled "Saving…" button, an `aria-busy` region). If the component has none, render it the way its parent would and say so in a comment, as the matrix rules say.
+Writing Blade previews:
+- **A query in a preview** shows as the error. The usual cause is a factory whose definition has a parent factory (`'user_id' => User::factory()`): `make()` still saves that parent. Use `->withoutParents()` (Laravel 12 and later) or pass the key yourself (`make(['user_id' => null])`), then attach a made parent with `->setRelation('user', User::factory()->make())`.
+- **`loading`.** A Blade page has no pending state of its own. Render the placeholder the page shows while it waits (a skeleton, a disabled "Saving…" button, an `aria-busy` region), or follow the matrix rule for a state the component can't show.
 - **Form errors.** For a form whose `error` state is validation messages, share an error bag in that state's closure: `view()->share('errors', (new \Illuminate\Support\ViewErrorBag)->put('default', new \Illuminate\Support\MessageBag(['email' => ['That email is already taken.']])))`.
-- **The origin is Laravel's.** The matrix paths resolve against the app's own URL (`php artisan serve`, Herd, Sail), not Vite's dev server, which only serves assets.
 
-**Prove the exclusion** after installing, before recording the answer:
+**Prove the exclusion** after installing, before recording the answer. Don't record `yes` until both pass:
 - `php artisan route:list --path=__preview` lists the route, and `APP_ENV=production php artisan route:list --path=__preview` says the app has no matching routes. A cached config (`bootstrap/cache/config.php`) pins the environment, so run both checks without one. If one exists, ask before running `php artisan config:clear`.
-- With the dev server running, a preview URL with a state that doesn't exist shows the harness's error message, not Laravel's error page.
-
-If a check fails, fix the mount and check again. Don't record `yes` until it passes.
+- With the app running, a preview URL with a state that doesn't exist shows the harness's error message, not Laravel's error page.
 
 ## The matrix file
 
@@ -306,7 +298,7 @@ If a check fails, fix the mount and check again. Don't record `yes` until it pas
 }
 ```
 
-Paths resolve against `--url`, the dev server's (or Storybook's) origin. For Storybook, each path is the story's `/iframe.html?id=…&viewMode=story`. Every state is captured at the widest viewport (1280), and `typical` and `overflow` at mobile width (390) too. Interaction states are captured at 1280, or at the `viewports` they name. Don't pass `--states` with `--matrix`: the script refuses both together. Put the user's named states in `interactions` instead.
+Paths resolve against `--url`, the origin that serves the preview route (or Storybook). In a Laravel app that's the app's own URL (`php artisan serve`, Herd, Sail), not Vite's dev server. For Storybook, each path is the story's `/iframe.html?id=…&viewMode=story`. Every state is captured at the widest viewport (1280), and `typical` and `overflow` at mobile width (390) too. Interaction states are captured at 1280, or at the `viewports` they name. Don't pass `--states` with `--matrix`: the script refuses both together. Put the user's named states in `interactions` instead.
 
 ## Temporary mode
 

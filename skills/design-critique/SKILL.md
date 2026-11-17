@@ -24,7 +24,7 @@ The user names a route (`/orders`), a full URL, or a component. For a component 
 
 Steps are `click`, `fill`, `press`, `hover` and `waitFor`. Always keep `default`.
 
-**A component in a React or Blade repo** (a Blade component or partial, in a Laravel Blade repo) is captured from its preview instead, in every state of the state matrix. [preview-harness.md](../design-setup/references/preview-harness.md) (in `${CLAUDE_SKILL_DIR}/../design-setup/references/`) describes previews, the matrix, fixtures and temporary mode. Read it, then:
+**A component in a React or Blade repo** is captured from its preview instead, in every state of the state matrix. [preview-harness.md](../design-setup/references/preview-harness.md) (in `${CLAUDE_SKILL_DIR}/../design-setup/references/`) describes previews, the matrix, fixtures and temporary mode. Read it, then:
 - Find the component's preview where the inventory's `## Preview surface` says previews live: a stories file with the six state stories, `previews/<slug>.preview.tsx` in the React harness, or `resources/previews/<slug>.php` in the Blade harness. If it has none, write one. If the surface is `temporary` (or the inventory is missing), build the temporary structure for this run as the reference describes, once `RUN` exists (below). Step 9 removes it.
 - States the user names become interaction states, each starting from the preview state it fits (usually `typical`).
 - Write `RUN/matrix.json` from the preview. Skip the states file.
@@ -72,13 +72,13 @@ node SCRIPTS/capture.mjs --url "URL" --out "RUN" --states RUN/states.json [--sto
 node SCRIPTS/capture.mjs --url "NEIGHBOUR_URL" --out "RUN/neighbour-1" --viewports 1280 [--storage-state RUN/auth.json]
 ```
 
-For a preview, capture the matrix instead of a states file. `ORIGIN` is the dev server's origin, or Storybook's:
+For a preview, capture the matrix instead of a states file. `ORIGIN` is the origin that serves the preview route (in Laravel, the app's own URL, not Vite's), or Storybook's:
 
 ```bash
 node SCRIPTS/capture.mjs --url "ORIGIN" --out "RUN" --matrix RUN/matrix.json [--storage-state RUN/auth.json]
 ```
 
-That captures every state at 1280 wide, plus `typical` and `overflow` at 390, and each interaction at 1280 or the widths it names. Exit 1 with "missing required states" means the preview is incomplete: add the missing states to the preview, then capture again. A shot listed under `errors` with "preview error" hit the harness's own error message (no such preview or state, or a preview that failed to load) or Storybook's error display (no such story): fix the preview, the registry or the matrix path. A timeout waiting for the preview means the page rendered neither: check the harness is mounted, or that the URL is a story.
+That captures every state at 1280 wide, plus `typical` and `overflow` at 390, and each interaction at 1280 or the widths it names. Exit 1 with "missing required states" means the preview is incomplete: add the missing states to the preview, then capture again. A shot listed under `errors` with "preview error" hit the harness's own error message (no such preview or state, or a preview that failed to load or render) or Storybook's error display (no such story): fix the preview, how it's registered (the React registry; the Blade preview's file name) or the matrix path. A timeout waiting for the preview means the page rendered neither: check the harness is mounted, or that the URL is a story.
 
 Capture each neighbour into its own folder (`neighbour-1`, `neighbour-2`). The default widths are 390 and 1280. A width over 1280 is refused, and screenshots are taken at device scale 1 and cut off at 4000px tall, which keeps them small.
 
