@@ -111,6 +111,11 @@ class ComponentGateTest(unittest.TestCase):
             ({"name": "alert-cell", "why": why}, ["AlertCell"], "same name as a catalogued component"),
             ({"name": "ButtonCell", "why": why}, ["Button", "PrimaryButton"], None),
             ({"name": "XButton", "why": why}, ["Button", "PrimaryButton"], None),
+            ({"name": "<x-previews.order-list-dense.status-badge>", "why": why}, ["<x-status-badge>"],
+             "same name as a catalogued component"),
+            ({"name": "previews/order-list-dense/alert_cell", "why": why}, ["AlertCell"],
+             "same name as a catalogued component"),
+            ({"name": "Cell", "why": why}, [], None),
         ]
         for entry, similar, blocked in cases:
             with self.subTest(entry=entry):
@@ -298,11 +303,15 @@ class CliTest(unittest.TestCase):
                 gates = json.loads((run / "gates.json").read_text())
                 self.assertEqual([c["name"] for c in gates["components"]], ["OrderSummary"])
 
-    def test_refuses_a_missing_components_or_direction_file(self):
+    def test_refuses_a_missing_input_file(self):
         with tempfile.TemporaryDirectory() as d:
             run, _ = make_run(d)
+            (Path(d) / "r.md").write_text(RUBRIC)
             for argv in (["gates", "--run", str(run), "--components", f"{d}/gone.json"],
-                         ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--direction", f"{d}/gone.md"]):
+                         ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--direction", f"{d}/gone.md"],
+                         ["brief", "--run", str(run), "--rubric", f"{d}/gone.md"],
+                         ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--extra", f"{d}/gone.md"],
+                         ["review", "--run", str(run), "--findings", f"{d}/gone.json"]):
                 with self.subTest(argv[0]), self.assertRaises(SystemExit) as exit:
                     C.main(argv)
                 self.assertEqual(exit.exception.code, 2)

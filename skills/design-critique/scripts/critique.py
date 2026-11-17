@@ -171,15 +171,16 @@ def token_gate(root, inventory, files):
 
 def name_words(name):
     """`<x-status-badge>`, `StatusBadge` and `status_badge` all give ['status', 'badge']: a Blade tag's `x-` is
-    dropped (but not the X of `XAxis`)."""
-    words = [w.lower() for w in re.findall(r"[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+", name)]
-    return words[1:] if name.lstrip("<").startswith("x-") else words
+    dropped (but not the X of `XAxis`), and so is a folder (`<x-previews.dense.status-badge>`, `previews/dense/a`)."""
+    base = name.strip("<>/ ")
+    base = re.split(r"[./\\]|::", base[2:] if base.startswith("x-") else base)[-1]
+    return [w.lower() for w in re.findall(r"[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+", base)]
 
 
 def kind(words):
     """The last word, which says what kind of component it is. A CI4 `Cell` or `Component` suffix doesn't count,
     so `AlertCell` is an 'alert'."""
-    return words[-2:-1] if words[-1:] in (["cell"], ["component"]) else words[-1:]
+    return words[-2:-1] if len(words) > 1 and words[-1] in ("cell", "component") else words[-1:]
 
 
 def component_gate(inventory, entries):
@@ -190,7 +191,7 @@ def component_gate(inventory, entries):
     for entry in entries:
         words = name_words(entry["name"])
         similar = [(name, w) for name, w in catalogue if kind(w) == kind(words)]
-        if any(w == words for _, w in similar):
+        if words and any(w == words for _, w in similar):
             blocked = "same name as a catalogued component"
         elif not str(entry.get("why") or "").strip():
             blocked = "no reason the catalogued components didn't fit"
@@ -224,7 +225,7 @@ def main(argv=None):
         s.add_argument("--run", required=True)
         s.add_argument("--inventory", default="docs/agents/design-system.md")
     a = p.parse_args(argv)
-    for given in (getattr(a, "components", None), getattr(a, "direction", None)):
+    for given in (getattr(a, name, None) for name in ("components", "direction", "rubric", "extra", "findings")):
         if given and not Path(given).is_file():
             p.error(f"no such file: {given}")
     run, inventory = Path(a.run), read(a.inventory)

@@ -33,7 +33,7 @@ Read `package.json`, `composer.json` and the config files at the root.
 
 Judge by the views the app actually has, not by a leftover dependency. A React Native app is unsupported even though `react` is there. A Laravel app whose screens are `.vue` files is Inertia-Vue, not Blade. A Blade app with a few Livewire components is still Blade: catalogue it, and list the Livewire components under "Detected but not supported". Unsupported parts are still catalogued; later design skills just can't preview them.
 
-Skip the folders `code-health` skips (`vendor`, `node_modules`, `target`, `dist`, `build`, `.next`, `writable`, `storage`), plus `public/build`. That includes `vendor` folders inside the scanned paths, such as Laravel's published `resources/views/vendor`.
+Skip the folders `code-health` skips (`vendor`, `node_modules`, `target`, `dist`, `build`, `.next`, `writable`, `storage`), plus `public/build` and the preview code design skills write (`__preview`, `resources/previews`, `app/Previews`, and any `previews` folder under the component and view folders). That includes `vendor` folders inside the scanned paths, such as Laravel's published `resources/views/vendor`.
 
 ## 2. Choose the scanned paths
 

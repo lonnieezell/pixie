@@ -78,11 +78,11 @@ Axes: **Density** (compact ↔ roomy), **Disclosure** (everything at once ↔ pr
 
 ## 4. Build the previews
 
-Before writing anything, save `git status --porcelain --untracked-files=all` to `RUN/status-before.txt`, so step 8 can tell this run's files from the user's own. Then build one preview per direction, where the inventory's `## Preview surface` says previews live, as `SETUP/references/preview-harness.md` describes. If the surface is `temporary`, build the temporary structure first (its **Temporary mode**).
+The first time this step runs, before writing anything, save `git status --porcelain --untracked-files=all` to `RUN/status-before.txt`, so step 8 can tell this run's files from the user's own. Never save it again in this run: a blend or a new brief reuses it. Any existing file a direction will edit (a preview registry, a stories index) must be clean in it; if one isn't, ask the user to commit it first. Then build one preview per direction, where the inventory's `## Preview surface` says previews live, as `SETUP/references/preview-harness.md` describes. If the surface is `temporary`, build the temporary structure first, once per run (its **Temporary mode**, using the `status-before.txt` just saved).
 
 - **Slug:** `SLUG-NAME`, where `SLUG` names the thing being designed (`order-list-dense-table`). Lowercase letters, digits and `-` only.
 - **Every state** of the matrix, with the **same fixtures** in every direction, so the screenshots compare like for like.
-- **Catalogued components only**, imported or called the way the inventory's `Path / import` column says. A new component the brief approved goes in a folder of its own for the direction, never among the app's own components: building the winner for real is a later step. Blade only resolves `<x-…>` tags under `resources/views/components`, and every file in the previews folder is a preview, so:
+- **Catalogued components only**, imported or called the way the inventory's `Path / import` column says. A new component the brief approved goes in a `previews` folder of its own for the direction, which the inventory scan skips, so it's never catalogued as one of the app's components: building the winner for real is a later step. Blade only resolves `<x-…>` tags under `resources/views/components`, and every file in the previews folder is a preview, so:
 
   | Stack | New components go in | Used as |
   |---|---|---|

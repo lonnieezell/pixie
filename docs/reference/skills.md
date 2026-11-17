@@ -249,7 +249,7 @@ Explores 2–4 design directions for one component, section or page, renders eac
 **Limits:**
 
 - It explores and records. It doesn't build the winner into production code.
-- Direction code lives in a `previews/` folder of its own, never among your app's components.
+- Direction code lives in a `previews` folder of its own (for Blade, `resources/views/components/previews/`, where Blade can find it). `design-setup` skips those folders, so preview code is never catalogued as one of your components.
 - With no permanent preview harness, it offers to install one so the winner's preview can stay. Otherwise the preview is removed with the temporary harness.
 
 **Output:** `docs/design/decisions/YYYY-MM-DD-SLUG.md`, with screenshots in a folder beside it, and the winner's preview. The first run asks whether to gitignore the screenshots, and records your answer in the inventory.
