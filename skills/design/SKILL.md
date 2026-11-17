@@ -78,16 +78,22 @@ Axes: **Density** (compact ↔ roomy), **Disclosure** (everything at once ↔ pr
 
 ## 4. Build the previews
 
-Build one preview per direction, where the inventory's `## Preview surface` says previews live, as `SETUP/references/preview-harness.md` describes. If the surface is `temporary`, build the temporary structure first (its **Temporary mode**, with `status-before.txt` in `RUN`).
+Before writing anything, save `git status --porcelain --untracked-files=all` to `RUN/status-before.txt`, so step 8 can tell this run's files from the user's own. Then build one preview per direction, where the inventory's `## Preview surface` says previews live, as `SETUP/references/preview-harness.md` describes. If the surface is `temporary`, build the temporary structure first (its **Temporary mode**).
 
 - **Slug:** `SLUG-NAME`, where `SLUG` names the thing being designed (`order-list-dense-table`). Lowercase letters, digits and `-` only.
 - **Every state** of the matrix, with the **same fixtures** in every direction, so the screenshots compare like for like.
-- **Catalogued components only**, imported or called the way the inventory's `Path / import` column says. A new component the brief approved lives beside the preview, never in the app's component folders: building the winner for real is a later step.
+- **Catalogued components only**, imported or called the way the inventory's `Path / import` column says. A new component the brief approved goes in a folder of its own for the direction, never among the app's own components: building the winner for real is a later step. Blade only resolves `<x-…>` tags under `resources/views/components`, and every file in the previews folder is a preview, so:
+
+  | Stack | New components go in | Used as |
+  |---|---|---|
+  | React | `previews/SLUG-NAME/` beside the preview (or beside the stories file) | an import |
+  | Laravel Blade | `resources/views/components/previews/SLUG-NAME/` | `<x-previews.SLUG-NAME.count-badge>` |
+  | CodeIgniter 4 | `app/Views/previews/SLUG-NAME/` | `view('previews/SLUG-NAME/count_badge', $data)` |
 - Keep fixture data that holds colours (a swatch, a chart series) in its own fixture file, so the gate in step 5 reads only the direction's markup.
 
 For each direction, write:
 - `RUN/directions/NAME/files.txt`: every path this direction created, one per line, marked `created`, and every existing file it edited (a registry line, a stories index), marked `edited` with the line it added. Step 8 deletes the losers' entries from this list.
-- `RUN/directions/NAME/components.json`: the new components from the brief, `[]` if none: `[{"name": "OrderSummary", "path": "src/__preview/previews/order-list-card-stack/OrderSummary.tsx", "why": "Nothing catalogued shows a total with its breakdown."}]`
+- `RUN/directions/NAME/components.json`: one entry for every component file the direction created (every `created` path in `files.txt` except the preview itself and fixture files), `[]` if none: `[{"name": "OrderSummary", "path": "src/__preview/previews/order-list-card-stack/OrderSummary.tsx", "why": "Nothing catalogued shows a total with its breakdown."}]`. A component left off this list skips the duplicate check, so check the two lists match.
 - `RUN/directions/NAME/matrix.json`: the preview's matrix, as the reference's **The matrix file** shows.
 
 ## 5. Capture and gates
@@ -141,11 +147,11 @@ For each direction, print: its axis positions and trade-off, its gate results, i
 
 - **Pick one** of the directions.
 - **Blend:** the user says what to take from which (the layout of one, the density of another). Build the blend as one more direction, with its own `direction.md` naming what it takes from where, then run steps 4 to 6 for it, with one fix round. Reuse the neighbours already captured. Then ask again.
-- **None of these:** go back to step 3 with what the user said. Delete every direction's files first (step 8's deletion, for all of them).
+- **None of these:** go back to step 3 with what the user said. Delete every direction's files first (step 8's deletion, for all of them), and its `RUN/directions/NAME` folder, so a reused name doesn't inherit old screenshots or an old `axe.json`.
 
 ## 8. Clean up and record
 
-**Delete the losers.** For every direction except the winner, delete each `created` path in its `files.txt` and any folder it leaves empty, and take out the line it added to each `edited` file. Then check that `git status --porcelain` lists only the winner's files, the harness's own files if this run installed them, and nothing a losing direction made. In temporary mode, see **Temporary harness** below.
+**Delete the losers.** For every direction except the winner, delete each `created` path in its `files.txt` and any folder it leaves empty, and take out the line it added to each `edited` file. Then run `git status --porcelain --untracked-files=all` again and compare it with `RUN/status-before.txt`: the only new lines may be the winner's files (and the harness's own files, if this run installed it). Never touch a line that was already in `status-before.txt`: that's the user's work. In temporary mode, see **Temporary harness** below.
 
 **Keep the winner's preview** in the harness or Storybook, with its new components beside it.
 

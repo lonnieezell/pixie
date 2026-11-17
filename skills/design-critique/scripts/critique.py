@@ -86,8 +86,13 @@ REQUIRED = ["rubric", "severity", "screenshot", "state", "viewport", "observed",
 MIN_OBSERVED_WORDS = 6
 
 
+def first_column(table):
+    """The backticked first cell of each row of a markdown table: rubric IDs, catalogued component names."""
+    return [m.group(1) for m in map(RUBRIC_ROW.match, table.splitlines()) if m]
+
+
 def rubric_ids(rubric):
-    return {m.group(1) for m in map(RUBRIC_ROW.match, rubric.splitlines()) if m}
+    return set(first_column(rubric))
 
 
 def rejection(f, ids, shots):
@@ -165,25 +170,26 @@ def token_gate(root, inventory, files):
 
 
 def name_words(name):
-    """`<x-status-badge>`, `StatusBadge` and `status_badge` all give ['status', 'badge']. A Blade `x-` prefix and
-    a CI4 `Cell` or `Component` suffix are dropped, so `AlertCell` compares as 'alert'."""
+    """`<x-status-badge>`, `StatusBadge` and `status_badge` all give ['status', 'badge']: a Blade tag's `x-` is
+    dropped (but not the X of `XAxis`)."""
     words = [w.lower() for w in re.findall(r"[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+", name)]
-    if words[:1] == ["x"]:
-        words = words[1:]
-    if words[-1:] in (["cell"], ["component"]):
-        words = words[:-1]
-    return words
+    return words[1:] if name.lstrip("<").startswith("x-") else words
+
+
+def kind(words):
+    """The last word, which says what kind of component it is. A CI4 `Cell` or `Component` suffix doesn't count,
+    so `AlertCell` is an 'alert'."""
+    return words[-2:-1] if words[-1:] in (["cell"], ["component"]) else words[-1:]
 
 
 def component_gate(inventory, entries):
-    """For each component a design direction adds: the catalogued components of the same kind (same last word),
-    and why it's blocked, if it is: no stated reason, or the same name as a catalogued one."""
-    rows = [m.group(1) for m in map(RUBRIC_ROW.match, section(inventory, "Components").splitlines()) if m]
-    catalogue = [(name, name_words(name)) for name in rows]
+    """For each component a design direction adds: the catalogued components of the same kind, and why it's
+    blocked, if it is: the same name as a catalogued one, or no stated reason."""
+    catalogue = [(name, name_words(name)) for name in first_column(section(inventory, "Components"))]
     results = []
     for entry in entries:
         words = name_words(entry["name"])
-        similar = [(name, w) for name, w in catalogue if w[-1:] == words[-1:]]
+        similar = [(name, w) for name, w in catalogue if kind(w) == kind(words)]
         if any(w == words for _, w in similar):
             blocked = "same name as a catalogued component"
         elif not str(entry.get("why") or "").strip():
@@ -218,6 +224,9 @@ def main(argv=None):
         s.add_argument("--run", required=True)
         s.add_argument("--inventory", default="docs/agents/design-system.md")
     a = p.parse_args(argv)
+    for given in (getattr(a, "components", None), getattr(a, "direction", None)):
+        if given and not Path(given).is_file():
+            p.error(f"no such file: {given}")
     run, inventory = Path(a.run), read(a.inventory)
 
     if a.cmd == "gates":

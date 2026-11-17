@@ -32,6 +32,6 @@ With no verification skill, these skills skip the live check. `tackle` and `unta
 | `checkup` | `false` | No live reproduction. Findings top out at evidence rung 4. Set it to `true` to reproduce filed findings in the app. Each drive costs many tokens and adds only a text note to the issue. |
 | `catch` | `true` | No live reproduction of production errors. |
 | `poke` | `true` | It skips the verification skill and uses the next way to drive the app on its list. |
-| `design` | `true` | `design-critique` and `design` don't launch the app through the verification skill. It uses the launch fallback in the design inventory, or asks for a launch command. |
+| `design` | `true` | `design-critique` and `design` don't launch the app through the verification skill. They use the launch fallback in the design inventory, or ask for a launch command. |
 
 A missing file or a missing key means the default. Live checks prove things with text where they can, and view a screenshot only when the proof is visual. For how to set it, see [Choose which skills use it](../how-to/find-ux-bugs.md#5-choose-which-skills-use-it).
