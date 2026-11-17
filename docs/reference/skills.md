@@ -15,6 +15,7 @@ New to Pixie? Start with the [tutorial](../tutorial/first-issue-to-pr.md) instea
 | `create-verifier` | Writes a project skill that drives your app like a user | `/pixie:create-verifier` | — | No |
 | `design-setup` | Catalogues the repo's design system for design work | `/pixie:design-setup` | — | No |
 | `design-critique` | Critiques one screen of the running app from screenshots | `/pixie:design-critique /orders` | Node and Playwright, or a browser MCP; `gh` to file issues (optional) | No |
+| `design` | Explores 2–4 design directions, renders and critiques them, and records your pick | `/pixie:design the order list` | Node and Playwright, or a browser MCP | No |
 | `diagnose` | Finds a bug's root cause, proves it, then fixes it | `/pixie:diagnose checkout total is wrong` | — | Only when asked by name |
 | `how` | Explains how part of the codebase works | `/pixie:how does authentication work` | — | Yes |
 | `huh` | Restates Claude's last reply in plain language | `/pixie:huh` | — | No |
@@ -227,6 +228,33 @@ Gives a ranked, evidence-backed critique of one existing screen, judged from scr
 **Output:** `docs/design/critiques/YYYY-MM-DD-SLUG.md`, with screenshots in a folder beside it. The first run asks whether to gitignore the screenshots, and records your answer in the inventory.
 
 Claude never runs this skill on its own. You must type `/pixie:design-critique`.
+
+## design
+
+Explores 2–4 design directions for one component, section or page, renders each in your running app, and lets you pick with screenshots and critiques in front of you. Name what to design, and ask for a wildcard if you want one: `/pixie:design the order list, with a wildcard`. Works on React, Laravel Blade and CodeIgniter 4 apps.
+
+**How it works:**
+
+1. Checks the design inventory is fresh, and refreshes it if the scanned files changed. With no inventory, it runs a quick version of `design-setup` first.
+2. Frames the work: who uses the screen, for what task, with which data, next to which screens.
+3. Writes a text brief: 2–4 named axes (such as `Density: compact ↔ roomy`) and the directions placed on them, each built from catalogued components, with a one-sentence trade-off. A component, or a section of a screen, gets 2 directions and a page gets 3, up to 4 if you ask. A wildcard that breaks a house convention appears only when you ask for one. **It stops here until you approve the brief.**
+4. Builds each direction as a preview, with the full state matrix and the same fixtures in each, using the inventory's preferred components. A new component needs a stated reason the catalogued ones didn't fit.
+5. Captures each direction and runs blocking gates: zero axe violations, no raw hex colours or arbitrary values, and no new component that duplicates a catalogued one or lacks a reason. A direction can't move on until its gates pass.
+6. Runs one `design-critic` per direction, in parallel, each seeing only its own screenshots, the neighbouring screens, the rubric and the direction. No code. It fixes serious findings within each direction, for 2 rounds at most.
+7. You pick one direction, ask for a blend, or send it back to the brief.
+8. Deletes the losing directions' code, keeps the winner's preview, and writes a dated decision record.
+
+**Capture tools:** the same as `design-critique`, and the same fallbacks.
+
+**Limits:**
+
+- It explores and records. It doesn't build the winner into production code.
+- Direction code lives beside its preview, never in your component folders.
+- With no permanent preview harness, it offers to install one so the winner's preview can stay. Otherwise the preview is removed with the temporary harness.
+
+**Output:** `docs/design/decisions/YYYY-MM-DD-SLUG.md`, with screenshots in a folder beside it, and the winner's preview. The first run asks whether to gitignore the screenshots, and records your answer in the inventory.
+
+Claude never runs this skill on its own. You must type `/pixie:design`.
 
 ## diagnose
 

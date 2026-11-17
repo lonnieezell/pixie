@@ -91,6 +91,7 @@ Pushes and PRs:
 | `docs/agents/pixie-labels.md` | `setup`, or you | Yes. Commit it so everyone uses the same labels. |
 | `docs/agents/design-system.md` | `design-setup`. You edit its `Annotations` and `Rubric overrides` sections. | Yes. Commit it so design work reuses the same components. |
 | `docs/design/critiques/<date>-<slug>.md` and a screenshot folder beside it | `design-critique` | The report, yes. The screenshots too, unless you said yes to gitignoring them. Then `docs/design/critiques/*/` is in `.gitignore`. |
+| `docs/design/decisions/<date>-<slug>.md` and a screenshot folder beside it | `design` | The record, yes. The screenshots too, unless you said yes to gitignoring them. Then `docs/design/decisions/*/` is in `.gitignore`. |
 | `docs/agents/checkup.json` | You | Yes. Settings for `checkup` and `catch`. |
 | `docs/agents/pixie.json` | You | Yes. Turns live checks off per skill. See [Live checks](live-checks.md). |
 | `docs/agents/checkup-baseline.json` | `checkup`, through the baseline PR | Yes, once you merge the PR |

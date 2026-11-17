@@ -137,6 +137,7 @@ From here, you can run `/pixie:untangle` to have Claude pick the top hotspot and
 | `create-verifier` | Writes a project skill that drives your app like a user | `/pixie:create-verifier`                           | —                                 |
 | `design-setup` | Catalogues the repo's design system for design work        | `/pixie:design-setup`                              | —                                 |
 | `design-critique` | Critiques one screen of the running app from screenshots | `/pixie:design-critique /orders`                   | Node and Playwright, or a browser MCP |
+| `design`      | Explores 2–4 design directions and records your pick        | `/pixie:design the order list`                     | Node and Playwright, or a browser MCP |
 | `diagnose`    | Finds a bug's root cause, proves it, then fixes it          | `/pixie:diagnose checkout total is wrong`          | —                                 |
 | `how`         | Explains how part of the codebase works                     | `/pixie:how does authentication work`              | —                                 |
 | `huh`         | Restates Claude's last reply in plain language              | `/pixie:huh`                                       | —                                 |
@@ -161,6 +162,6 @@ New to Pixie? Start with the [tutorial](docs/tutorial/first-issue-to-pr.md). It 
 The [docs home](docs/README.md) lists everything:
 
 - **Tutorial:** [Ship your first change with Pixie](docs/tutorial/first-issue-to-pr.md)
-- **How-to guides:** [set up a repo](docs/how-to/set-up-a-repo.md), [fix a bug](docs/how-to/fix-a-bug.md), [clean up hotspots](docs/how-to/clean-up-hotspots.md), [find bugs and UX gaps](docs/how-to/find-ux-bugs.md), [review someone else's PR](docs/how-to/review-a-pr.md), [prune a test suite](docs/how-to/prune-a-test-suite.md), [tune the code-health hook](docs/how-to/tune-the-code-health-hook.md)
+- **How-to guides:** [set up a repo](docs/how-to/set-up-a-repo.md), [fix a bug](docs/how-to/fix-a-bug.md), [clean up hotspots](docs/how-to/clean-up-hotspots.md), [find bugs and UX gaps](docs/how-to/find-ux-bugs.md), [review someone else's PR](docs/how-to/review-a-pr.md), [design a feature](docs/how-to/design-a-feature.md), [prune a test suite](docs/how-to/prune-a-test-suite.md), [tune the code-health hook](docs/how-to/tune-the-code-health-hook.md)
 - **Reference:** [skills](docs/reference/skills.md), [labels, branches, and files](docs/reference/labels-and-branches.md), [agents and the code-health hook](docs/reference/agents-and-hook.md)
 - **Explanation:** [How Pixie works](docs/explanation/how-pixie-works.md)
