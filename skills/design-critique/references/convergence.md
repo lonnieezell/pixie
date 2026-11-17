@@ -6,7 +6,7 @@ How a design becomes production code, test-first. `/design` follows all of it to
 
 ## 1. The test list is the state matrix
 
-Write one test per state in the preview's matrix: the six required states, any extra states (`disabled`, `read-only`), and each interaction state. Each test renders the production component with **that state's fixtures from the preview**, so the tests and the screenshots show the same data.
+Write one test per state in the preview's matrix: the six required states, any extra states (`disabled`, `read-only`), and each interaction state. Each test renders the production component with **the same data as that state of the preview**, so the tests and the screenshots agree: call the same factories, or copy hand-written fixtures to where the repo keeps test fixtures. Never import from a `previews` folder: it may be removed, and the inventory scan skips it.
 
 | Stack | Tests |
 |---|---|
@@ -30,7 +30,7 @@ Find elements the way a user does: by role, label or text (`getByRole`, `assertS
 
 ## 2. Red, then green
 
-**With Pixie's `tdd` skill** (`pixie:tdd` is in the available skills): load it with the Skill tool in feature mode, with the test list from step 1, one slice per state. Tell it the caller owns commits: it doesn't commit, and the user commits at the end.
+**With Pixie's `tdd` skill** (`pixie:tdd` is in the available skills): load it with the Skill tool, with the test list from step 1, one slice per item: feature mode for `/design`, bug mode for a `/design-critique` fix, since that corrects a screen that already exists. Tell it the caller owns commits: it doesn't commit, and the user commits at the end.
 
 **Without it**, run this loop yourself, one state at a time:
 1. Write the state's test. Write down the failure you expect.

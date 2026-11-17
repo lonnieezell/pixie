@@ -133,13 +133,14 @@ def review_findings(critic, inventory, findings):
     ids = rubric_ids((critic / "rubric.md").read_text())
     shots = {s["file"]: s for s in json.loads((critic / "manifest.json").read_text())["shots"]}
     drop = dropped(inventory)
+    approved = (critic / "approved").is_dir()
     if not isinstance(findings, list) or not all(isinstance(f, dict) for f in findings):
         raise ValueError("the critic's reply must be a JSON array of finding objects")
     result = {"accepted": [], "rejected": [], "suppressed": []}
     for f in findings:
         if isinstance(f.get("rubric"), str) and f["rubric"] in drop:
             result["suppressed"].append(f)
-        elif reason := rejection(f, ids, shots, (critic / "approved").is_dir()):
+        elif reason := rejection(f, ids, shots, approved):
             result["rejected"].append({"finding": f, "reason": reason})
         else:
             result["accepted"].append(f)
