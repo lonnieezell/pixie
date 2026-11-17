@@ -20,6 +20,15 @@ Source files: `tailwind.config.js`, `resources/css/app.css`
 |---|---|---|---|
 | primary | `brand-600` | `#4f46e5` | `tailwind.config.js:12` |
 
+## Components
+
+| Name | Path / import | Props and variants | When to use | Status |
+|---|---|---|---|---|
+| `Button` | `@/components/ui/button` | `variant` | Every action | preferred (annotation) |
+| `PrimaryButton` | `@/components/PrimaryButton` | `disabled` | Don't use | legacy (annotation) |
+| `<x-status-badge>` | `resources/views/components/status-badge.blade.php` | `status` | Order status | preferred (inferred: only one) |
+| `AlertCell` | `view_cell('App\\Cells\\AlertCell::show')` | `type` | Flash messages | preferred (inferred: only one) |
+
 ## Rules
 
 - Colours come from tokens.
@@ -86,6 +95,34 @@ class TokenGateTest(unittest.TestCase):
             self.assertEqual(skipped, ["gone.tsx", "resources"])
 
 
+class ComponentGateTest(unittest.TestCase):
+    def test_checks_new_components_against_the_catalogue(self):
+        why = "The catalogued badge has no room for a count."
+        cases = [
+            ({"name": "OrderSummary", "why": why}, [], None),
+            ({"name": "IconButton", "why": why}, ["Button", "PrimaryButton"], None),
+            ({"name": "order-badge", "why": why}, ["<x-status-badge>"], None),
+            ({"name": "<x-count-badge>", "why": why}, ["<x-status-badge>"], None),
+            ({"name": "NoticeAlert", "why": why}, ["AlertCell"], None),
+            ({"name": "OrderSummary", "why": "  "}, [], "no reason the catalogued components didn't fit"),
+            ({"name": "OrderSummary"}, [], "no reason the catalogued components didn't fit"),
+            ({"name": "button", "why": why}, ["Button", "PrimaryButton"], "same name as a catalogued component"),
+            ({"name": "x-status-badge", "why": why}, ["<x-status-badge>"], "same name as a catalogued component"),
+            ({"name": "alert-cell", "why": why}, ["AlertCell"], "same name as a catalogued component"),
+            ({"name": "ButtonCell", "why": why}, ["Button", "PrimaryButton"], None),
+            ({"name": "XButton", "why": why}, ["Button", "PrimaryButton"], None),
+            ({"name": "<x-previews.order-list-dense.status-badge>", "why": why}, ["<x-status-badge>"],
+             "same name as a catalogued component"),
+            ({"name": "previews/order-list-dense/alert_cell", "why": why}, ["AlertCell"],
+             "same name as a catalogued component"),
+            ({"name": "Cell", "why": why}, [], None),
+        ]
+        for entry, similar, blocked in cases:
+            with self.subTest(entry=entry):
+                [result] = C.component_gate(INVENTORY, [{"path": "src/x.tsx", **entry}])
+                self.assertEqual((result["similar"], result["blocked"]), (similar, blocked))
+
+
 RUBRIC = """# Rubric
 
 | ID | Check | Typical severity |
@@ -137,6 +174,7 @@ class BriefTest(unittest.TestCase):
             self.assertIn("Colours come from tokens.", context)
             self.assertIn("Dense tables are fine on admin screens.", context)
             self.assertNotIn("status:", context)
+            self.assertNotIn("# Direction", context)
 
     def test_rerunning_brief_rebuilds_the_folder(self):
         with tempfile.TemporaryDirectory() as d:
@@ -217,10 +255,12 @@ class CliTest(unittest.TestCase):
             rubric.write_text(RUBRIC)
             extra.write_text(EXTRA)
             found.write_text(json.dumps([finding(), finding(rubric="type.line-length")]))
+            direction = root / "direction.md"
+            direction.write_text("**Dense table.** Density: high. Trades scannability for fewer clicks.\n")
 
             C.main(["gates", "--root", d, "--run", str(run), "--inventory", str(inventory), "--files", "page.tsx"])
             C.main(["brief", "--run", str(run), "--inventory", str(inventory), "--rubric", str(rubric),
-                    "--extra", str(extra), "--neighbours", *map(str, neighbours)])
+                    "--extra", str(extra), "--direction", str(direction), "--neighbours", *map(str, neighbours)])
             C.main(["review", "--run", str(run), "--inventory", str(inventory), "--findings", str(found)])
 
             gates = json.loads((run / "gates.json").read_text())
@@ -228,8 +268,55 @@ class CliTest(unittest.TestCase):
             self.assertEqual([g["match"] for g in gates["tokens"]], ["text-[#333]"])
             self.assertEqual(gates["skipped"], [])
             self.assertTrue((run / "critic" / "rubric.md").exists())
+            context = (run / "critic" / "context.md").read_text()
+            self.assertIn("# Direction\n**Dense table.** Density: high.", context)
             review = json.loads((run / "findings.json").read_text())
             self.assertEqual([len(review[k]) for k in ("accepted", "rejected", "suppressed")], [1, 0, 1])
+
+    def test_strict_gates_exit_1_while_anything_blocks(self):
+        clean = {"violations": [], "page": '<p className="text-sm" />', "files": ["page.tsx"],
+                 "components": [{"name": "OrderSummary", "path": "page.tsx", "why": "Nothing catalogued shows totals."}]}
+        cases = [
+            ("clean", {}, None),
+            ("axe violation", {"violations": [
+                {"id": "region", "impact": "moderate", "help": "Landmarks", "nodes": [{"target": ["#f"]}]}]}, 1),
+            ("raw value", {"page": '<p className="text-[#333]" />'}, 1),
+            ("unreadable file", {"files": ["gone.tsx"]}, 1),
+            ("unjustified component", {"components": [{"name": "OrderSummary", "path": "page.tsx"}]}, 1),
+        ]
+        for name, over, code in cases:
+            c = {**clean, **over}
+            with self.subTest(name), tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                run, _ = make_run(d)
+                (run / "axe.json").write_text(json.dumps([{**MANIFEST["shots"][0], "violations": c["violations"]}]))
+                (root / "page.tsx").write_text(c["page"] + "\n")
+                (root / "inv.md").write_text(INVENTORY)
+                (root / "components.json").write_text(json.dumps(c["components"]))
+                try:
+                    C.main(["gates", "--strict", "--root", d, "--run", str(run), "--inventory", str(root / "inv.md"),
+                            "--components", str(root / "components.json"), "--files", *c["files"]])
+                    exit_code = None
+                except SystemExit as e:
+                    exit_code = e.code
+                self.assertEqual(exit_code, code)
+                gates = json.loads((run / "gates.json").read_text())
+                self.assertEqual([c["name"] for c in gates["components"]], ["OrderSummary"])
+
+    def test_refuses_a_missing_input_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            run, _ = make_run(d)
+            (Path(d) / "r.md").write_text(RUBRIC)
+            for argv in (["gates", "--run", str(run), "--components", f"{d}/gone.json"],
+                         ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--direction", f"{d}/gone.md"],
+                         ["brief", "--run", str(run), "--rubric", f"{d}/gone.md"],
+                         ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--extra", f"{d}/gone.md"],
+                         ["review", "--run", str(run), "--findings", f"{d}/gone.json"]):
+                with self.subTest(argv[0]), self.assertRaises(SystemExit) as exit:
+                    C.main(argv)
+                self.assertEqual(exit.exception.code, 2)
+                self.assertFalse((run / "gates.json").exists())
+                self.assertFalse((run / "critic").exists())
 
 
 class AxeGateTest(unittest.TestCase):

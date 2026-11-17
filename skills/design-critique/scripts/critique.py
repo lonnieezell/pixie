@@ -59,7 +59,7 @@ def merge_rubric(rubric, extra):
     return rubric.rstrip("\n") + "\n\n## Added for this repo\n\n| ID | Check | Typical severity |\n|---|---|---|\n" + "\n".join(rows) + "\n"
 
 
-def brief(run, inventory, rubric, extra, neighbours):
+def brief(run, inventory, rubric, extra, neighbours, direction=""):
     """Build the critic's folder: screenshots, manifest, rubric and house rules. Never code."""
     run = Path(run)
     critic = run / "critic"
@@ -76,6 +76,7 @@ def brief(run, inventory, rubric, extra, neighbours):
     (critic / "rubric.md").write_text(merge_rubric(rubric, extra))
     (critic / "context.md").write_text(
         "# House rules\n" + section(inventory, "Rules") + "\n# Rubric overrides\n" + section(inventory, "Rubric overrides")
+        + ("\n# Direction\n" + direction if direction else "")
     )
     return critic
 
@@ -85,8 +86,13 @@ REQUIRED = ["rubric", "severity", "screenshot", "state", "viewport", "observed",
 MIN_OBSERVED_WORDS = 6
 
 
+def first_column(table):
+    """The backticked first cell of each row of a markdown table: rubric IDs, catalogued component names."""
+    return [m.group(1) for m in map(RUBRIC_ROW.match, table.splitlines()) if m]
+
+
 def rubric_ids(rubric):
-    return {m.group(1) for m in map(RUBRIC_ROW.match, rubric.splitlines()) if m}
+    return set(first_column(rubric))
 
 
 def rejection(f, ids, shots):
@@ -163,6 +169,38 @@ def token_gate(root, inventory, files):
     return hits, skipped
 
 
+def name_words(name):
+    """`<x-status-badge>`, `StatusBadge` and `status_badge` all give ['status', 'badge']: a Blade tag's `x-` is
+    dropped (but not the X of `XAxis`), and so is a folder (`<x-previews.dense.status-badge>`, `previews/dense/a`)."""
+    base = name.strip("<>/ ")
+    base = re.split(r"[./\\]|::", base[2:] if base.startswith("x-") else base)[-1]
+    return [w.lower() for w in re.findall(r"[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+", base)]
+
+
+def kind(words):
+    """The last word, which says what kind of component it is. A CI4 `Cell` or `Component` suffix doesn't count,
+    so `AlertCell` is an 'alert'."""
+    return words[-2:-1] if len(words) > 1 and words[-1] in ("cell", "component") else words[-1:]
+
+
+def component_gate(inventory, entries):
+    """For each component a design direction adds: the catalogued components of the same kind, and why it's
+    blocked, if it is: the same name as a catalogued one, or no stated reason."""
+    catalogue = [(name, name_words(name)) for name in first_column(section(inventory, "Components"))]
+    results = []
+    for entry in entries:
+        words = name_words(entry["name"])
+        similar = [(name, w) for name, w in catalogue if kind(w) == kind(words)]
+        if words and any(w == words for _, w in similar):
+            blocked = "same name as a catalogued component"
+        elif not str(entry.get("why") or "").strip():
+            blocked = "no reason the catalogued components didn't fit"
+        else:
+            blocked = None
+        results.append({**entry, "similar": [name for name, _ in similar], "blocked": blocked})
+    return results
+
+
 def read(path):
     """A file's text, or '' when it's missing (a repo without a design inventory)."""
     return Path(path).read_text() if path and Path(path).exists() else ""
@@ -174,26 +212,40 @@ def main(argv=None):
     g = sub.add_parser("gates", help="axe and token-compliance gates -> RUN/gates.json")
     g.add_argument("--root", default=".")
     g.add_argument("--files", nargs="*", default=[], help="repo-relative files that render the route")
+    g.add_argument("--components", help="JSON list of the components a design direction adds: name, path, why")
+    g.add_argument("--strict", action="store_true", help="exit 1 while any gate has a failure")
     b = sub.add_parser("brief", help="the critic's code-free folder -> RUN/critic/")
     b.add_argument("--rubric", required=True)
     b.add_argument("--extra", help="extra rubric rows from installed design skills")
     b.add_argument("--neighbours", nargs="*", default=[])
+    b.add_argument("--direction", help="the design direction this screen was built to, from /design's brief")
     r = sub.add_parser("review", help="validate, suppress and rank the critic's findings -> RUN/findings.json")
     r.add_argument("--findings", required=True)
     for s in (g, b, r):
         s.add_argument("--run", required=True)
         s.add_argument("--inventory", default="docs/agents/design-system.md")
     a = p.parse_args(argv)
+    for given in (getattr(a, name, None) for name in ("components", "direction", "rubric", "extra", "findings")):
+        if given and not Path(given).is_file():
+            p.error(f"no such file: {given}")
     run, inventory = Path(a.run), read(a.inventory)
 
     if a.cmd == "gates":
         axe = axe_findings(json.loads(read(run / "axe.json") or "[]"))
         tokens, skipped = token_gate(a.root, inventory, a.files)
-        (run / "gates.json").write_text(json.dumps({"axe": axe, "tokens": tokens, "skipped": skipped}, indent=2))
-        print(f"axe violations: {len(axe)}, raw values: {len(tokens)}, unreadable files: {skipped or 'none'}"
-              f" -> {run / 'gates.json'}")
+        gates = {"axe": axe, "tokens": tokens, "skipped": skipped}
+        summary = f"axe violations: {len(axe)}, raw values: {len(tokens)}, unreadable files: {skipped or 'none'}"
+        blocked = []
+        if a.components:
+            gates["components"] = component_gate(inventory, json.loads(read(a.components)))
+            blocked = [c["name"] for c in gates["components"] if c["blocked"]]
+            summary += f", blocked components: {blocked or 'none'}"
+        (run / "gates.json").write_text(json.dumps(gates, indent=2))
+        print(f"{summary} -> {run / 'gates.json'}")
+        if a.strict and (axe or tokens or skipped or blocked):
+            raise SystemExit(1)
     elif a.cmd == "brief":
-        print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours))
+        print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours, read(a.direction)))
     else:
         result = review_findings(run / "critic", inventory, json.loads(read(a.findings)))
         (run / "findings.json").write_text(json.dumps(result, indent=2))

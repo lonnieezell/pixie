@@ -26,6 +26,7 @@ Install it first. See [Prerequisites](../README.md#prerequisites) and [Install t
 | See how healthy the code is | `code-health` | [Clean up hotspots](how-to/clean-up-hotspots.md) |
 | Refactor messy code | `untangle` | [Clean up hotspots](how-to/clean-up-hotspots.md) |
 | Find bugs and UX gaps in the running app | `poke` | [Find bugs and UX gaps](how-to/find-ux-bugs.md) |
+| Explore design directions for a screen and pick one | `design` | [Design a feature](how-to/design-a-feature.md) |
 | Let agents drive my app | `create-verifier`, `maintain-verifier` | [Find bugs and UX gaps](how-to/find-ux-bugs.md) |
 | Remove redundant tests | `prune-tests` | [Prune a test suite](how-to/prune-a-test-suite.md) |
 | Audit the code for security, performance and bugs | `checkup` | [Audit a codebase](how-to/audit-a-codebase.md) |
@@ -47,6 +48,7 @@ Install it first. See [Prerequisites](../README.md#prerequisites) and [Install t
 - [Clean up hotspots](how-to/clean-up-hotspots.md)
 - [Find bugs and UX gaps in a running app](how-to/find-ux-bugs.md)
 - [Review someone else's pull request](how-to/review-a-pr.md)
+- [Design a feature](how-to/design-a-feature.md)
 - [Prune a test suite](how-to/prune-a-test-suite.md)
 - [Audit a codebase with checkup](how-to/audit-a-codebase.md)
 - [Turn production errors into issues with catch](how-to/turn-production-errors-into-issues.md)
