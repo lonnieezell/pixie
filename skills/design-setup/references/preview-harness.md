@@ -1,6 +1,6 @@
-# Preview harness (React)
+# Preview harness (React and Laravel Blade)
 
-A preview renders one component in every state of its **state matrix**, with fixture data, at a URL the capture script can load. `/design-critique` captures the whole matrix from it instead of only the states a live route happens to show.
+A preview renders one component (or, in Blade, a partial) in every state of its **state matrix**, with fixture data, at a URL the capture script can load. `/design-critique` captures the whole matrix from it instead of only the states a live route happens to show.
 
 `/pixie:design-setup` offers the harness once (step 7). The answer decides where previews live:
 
@@ -11,7 +11,7 @@ A preview renders one component in every state of its **state matrix**, with fix
 | Has Storybook | no | A stories file, created for one critique run and removed afterwards. Storybook is launched with the repo's `storybook` script. | `temporary` |
 | No Storybook | no | The `/__preview` route, created for one critique run and removed afterwards | `temporary` |
 
-React only. Blade and CodeIgniter screens are critiqued as live routes.
+A Laravel Blade repo has no Storybook row: its previews always use the `/__preview` route, written in PHP and Blade (see [Laravel Blade](#laravel-blade)). An Inertia-React app uses the React harness. CodeIgniter screens are critiqued as live routes.
 
 ## The state matrix
 
@@ -28,13 +28,15 @@ Every preview declares all six of these. A preview that lacks any of them is rej
 
 If the component has no way to show a state (no error prop, no loading prop), render it the way its parent would in that situation, and say so in a comment in the preview. Never leave a state out. A preview may add more states (`disabled`, `read-only`). They're captured too.
 
+**The markers.** Every harness marks its page for `capture.mjs`, which waits for one of two markers before going on: `data-pixie-preview` wraps a rendered state, and `data-pixie-preview-error` marks an error (no such preview or state, missing required states, a failed render). Errors are served with a 200, so the capture fails the shot when it sees that marker, instead of capturing an error message as a state.
+
 **Interaction states** are optional. Each one starts from a state's page and replays action steps before the screenshot, in the step format `/design-critique` uses (`click`, `fill`, `press`, `hover`, `waitFor`). For example, an open menu: `{"name": "menu open", "from": "typical", "steps": [{"click": "button[aria-label='Row actions']"}]}`. Use stable selectors: ARIA labels, `data-*` attributes, visible text. An interaction is captured at desktop width. One that only exists at another width, such as a mobile nav, names it: `"viewports": [390]`.
 
 ## Fixtures
 
-- Use the app's own JS factories when it has them (`test/factories`, `fishery`, `@faker-js/faker` builders, MSW handlers). Seed any randomness, so screenshots compare across runs.
-- Otherwise write the fixtures by hand, next to the preview.
-- Shapes match what production passes: the component's prop types, or the API resource the page fetches (a Laravel `JsonResource`, an OpenAPI schema, the TypeScript type of the fetch result). Read the type; don't guess field names.
+- Use the app's own factories when it has them: JS builders in React (`test/factories`, `fishery`, `@faker-js/faker` builders, MSW handlers), model factories (`database/factories`) in Blade, always with `make()`, which builds models in memory, never `create()`, which saves them. Seed any randomness, so screenshots compare across runs.
+- Without factories, write the fixtures by hand, next to the preview.
+- Shapes match what production passes: the component's prop types, a Blade component's `@props` or class constructor, the variables a partial uses, or the API resource the page fetches (a Laravel `JsonResource`, an OpenAPI schema, the TypeScript type of the fetch result). Read the type; don't guess field names.
 - **Never real data.** Don't query a database, call a live API or copy rows from one. Made-up names and values only.
 
 ## Storybook
@@ -106,7 +108,7 @@ export const previews: Record<string, () => Promise<{ states: Record<string, () 
 };
 ```
 
-**`PreviewPage.tsx`**, which renders one state and refuses an incomplete preview. `capture.mjs` waits for one of its two markers before going on: `data-pixie-preview` wraps a rendered state, and `data-pixie-preview-error` marks an error. Errors are served with a 200, so the capture fails the shot when it sees that marker, instead of capturing an error message as a state.
+**`PreviewPage.tsx`**, which renders one state and refuses an incomplete preview, with the two markers.
 
 ```tsx
 import { type ReactNode, useEffect, useState } from "react";
@@ -152,6 +154,145 @@ Each mount passes `slug` from the path and `state` from the `state` query.
 
 If the check fails, fix the mount and check again. Don't record `yes` until it passes.
 
+## Laravel Blade
+
+The same contract, served by Laravel: `/__preview/<slug>?state=<name>`, the six required states, [the markers](#the-state-matrix) and the same matrix file. A preview renders a Blade component (`<x-order-list>`) or a partial (`@include('orders._row')`) inside the app's own layout, so the page gets the app's real CSS and JS through `@vite` or `mix()`, whether that's Bootstrap or Tailwind. Those assets must be served too: run the repo's dev script (`composer run dev` in Laravel 11 and later, which starts the app and Vite together, or `npm run dev` alongside the app), or build them first. With neither, every state shows "Vite manifest not found".
+
+Four pieces:
+
+**`resources/previews/<slug>.php`**, one per component or partial. It returns the states as closures that render HTML, plus any interaction states:
+
+```php
+<?php
+
+use App\Models\Order;
+use Illuminate\Support\Facades\Blade;
+
+$list = fn ($orders, array $extra = []) => Blade::render(
+    '<x-order-list :orders="$orders" :error="$error" :loading="$loading" />',
+    ['orders' => $orders, 'error' => null, 'loading' => false, ...$extra],
+);
+
+// Each request renders one state, so each state builds only its own data.
+return [
+    'states' => [
+        'empty' => fn () => $list(collect()),
+        'single' => fn () => $list(Order::factory()->count(1)->make()),
+        'typical' => fn () => $list(Order::factory()->count(8)->make()),
+        'overflow' => fn () => $list(Order::factory()->count(60)->make(['customer' => 'Maximiliana Featherstonehaugh-Wolfeschlegel'])),
+        'error' => fn () => $list(collect(), ['error' => "We couldn't load your orders."]),
+        'loading' => fn () => $list(collect(), ['loading' => true]),
+    ],
+    'interactions' => [
+        ['name' => 'menu open', 'from' => 'typical', 'steps' => [['click' => "button[aria-label='Row actions']"]]],
+    ],
+];
+```
+
+A partial renders with `view('orders._row', ['order' => Order::factory()->make()])->render()`.
+
+**`resources/views/__preview.blade.php`**, which puts the state inside the app's real layout. Use the layout the component's screens use, from the inventory's layout shells:
+
+```blade
+{{-- Pixie's preview harness: one state of a preview, inside the app's real layout. --}}
+@extends('layouts.app')
+
+@section('content')
+    <div data-pixie-preview>{!! $render() !!}</div>
+@endsection
+```
+
+For a component layout, wrap it instead: `<x-app-layout><div data-pixie-preview>{!! $render() !!}</div></x-app-layout>`.
+
+**`routes/preview.php`**, which renders one state and refuses an incomplete preview:
+
+```php
+<?php
+
+// Pixie's preview harness: renders one component or partial in one state of its matrix, for /design-critique.
+// routes/web.php loads this file only in the local environment.
+
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use Illuminate\View\ViewException;
+
+Route::get('/__preview/{slug}', function (string $slug) {
+    $required = ['empty', 'single', 'typical', 'overflow', 'error', 'loading'];
+    $state = request()->query('state', 'typical');
+    $file = resource_path("previews/{$slug}.php");
+    // Served bare, without the layout, so a broken layout can't hide it.
+    $problem = fn (string $message) => response('<p role="alert" data-pixie-preview-error>'.e($message).'</p>');
+
+    // Previews never read or write a database: any query on any connection while rendering fails and is
+    // shown as a problem. Connections open lazily, so this opens none.
+    $rendering = true;
+    foreach (array_keys(config('database.connections')) as $name) {
+        DB::connection($name)->beforeExecuting(function (string $query) use (&$rendering) {
+            if ($rendering) {
+                throw new RuntimeException("previews never query the database, but this ran: {$query}");
+            }
+        });
+    }
+    try {
+        // Seeded, so factory data is the same on every load and screenshots compare across runs.
+        fake()->seed(1);
+        // A made-up user, never saved, for a layout that shows who's signed in.
+        auth()->setUser(User::factory()->make(['name' => 'Preview User']));
+
+        if (! is_file($file)) {
+            return $problem("No preview named {$slug}");
+        }
+        // Required in its own scope, so the preview's variables can't overwrite the harness's.
+        $states = (static fn () => require $file)()['states'];
+        $missing = array_diff($required, array_keys($states));
+        if ($missing) {
+            return $problem("Preview {$slug} is missing required states: ".implode(', ', $missing));
+        }
+        if (! array_key_exists($state, $states)) {
+            return $problem("Preview {$slug} has no state {$state}");
+        }
+
+        // Rendered here, inside the guard, so the layout can't query the database either. The view calls the
+        // state while the layout renders, so the component's @push and @once reach the layout's @stack.
+        return response(view('__preview', ['render' => $states[$state]])->render());
+    } catch (Throwable $e) {
+        // Blade wraps an error once per view it passes through; show the original.
+        while ($e instanceof ViewException && $e->getPrevious()) {
+            $e = $e->getPrevious();
+        }
+
+        return $problem("Preview {$slug} failed to render: {$e->getMessage()}");
+    } finally {
+        // The session and anything after the response may use the database again.
+        $rendering = false;
+    }
+})->where('slug', '[a-z0-9-]+');
+```
+
+Drop the `auth()->setUser(...)` line if the layout doesn't show a signed-in user, and use the app's user model if it isn't `App\Models\User`. If the layout needs more (a team, a locale), set it up here the same way, with made-up values.
+
+**`routes/web.php`**, which loads the route only in `local`:
+
+```php
+// Pixie's preview harness, for /design-critique. Never registered outside local.
+if (app()->environment('local')) {
+    require __DIR__.'/preview.php';
+}
+```
+
+Writing Blade previews:
+- **A query in a preview** shows as the error. The usual cause is a factory whose definition has a parent factory (`'user_id' => User::factory()`): `make()` still saves that parent. Use `->withoutParents()` (Laravel 12 and later) or pass the key yourself (`make(['user_id' => null])`), then attach a made parent with `->setRelation('user', User::factory()->make())`.
+- **A query in the layout** (a view composer loading the nav's categories, a `Cache::remember` with the `database` cache store) fails every state. Don't loosen the guard. Use a layout that doesn't query, if the app has one. Otherwise stop and tell the user which query runs, and ask how to give the layout made-up data in previews, for example by having that composer skip `__preview/*` requests.
+- **`loading`.** A Blade page has no pending state of its own. Render the placeholder the page shows while it waits (a skeleton, a disabled "Saving…" button, an `aria-busy` region), or follow the matrix rule for a state the component can't show.
+- **Form errors.** For a form whose `error` state is validation messages, share an error bag in that state's closure: `view()->share('errors', (new \Illuminate\Support\ViewErrorBag)->put('default', new \Illuminate\Support\MessageBag(['email' => ['That email is already taken.']])))`. The component's own `@error` and `$errors` see it. An error summary in the layout doesn't, because the layout's data is gathered before the state renders. Say so in the critique if the page has one.
+
+**Prove the exclusion** after installing, before recording the answer. Don't record `yes` until both pass:
+- `php artisan route:list --path=__preview` lists the route, and `APP_ENV=production php artisan route:list --path=__preview` says the app has no matching routes. A cached config (`bootstrap/cache/config.php`) pins the environment, and cached routes (`bootstrap/cache/routes-v7.php`) are listed whatever the environment, so run both checks without either. If one exists, ask before running `php artisan config:clear` and `php artisan route:clear`, and tell the user to rebuild them afterwards if they keep them on purpose.
+- Start the app (with the verifier's Launch section, or the launch command from step 5; if there's neither, ask the user for one, and confirm the command before running it). Load `/__preview/none` from the app's own URL: it shows the harness's "No preview named none" message, which also proves the database guard and the made-up user work. A Laravel error means the user model or its factory needs adapting in `routes/preview.php`. See the 404 note below for a 404. Stop the app afterwards.
+
+**A 404 from the route** has three usual causes: the app isn't running with `APP_ENV=local`, a route cache (`bootstrap/cache/routes-v7.php`) from before the install, or a URL on Vite's dev server instead of the app's.
+
 ## The matrix file
 
 `/design-critique` captures a preview by writing `RUN/matrix.json` from it and passing it to `capture.mjs --matrix`:
@@ -170,11 +311,11 @@ If the check fails, fix the mount and check again. Don't record `yes` until it p
 }
 ```
 
-Paths resolve against `--url`, the dev server's (or Storybook's) origin. For Storybook, each path is the story's `/iframe.html?id=…&viewMode=story`. Every state is captured at the widest viewport (1280), and `typical` and `overflow` at mobile width (390) too. Interaction states are captured at 1280, or at the `viewports` they name. Don't pass `--states` with `--matrix`: the script refuses both together. Put the user's named states in `interactions` instead.
+Paths resolve against `--url`, the origin that serves the preview route (or Storybook). In a Laravel app that's the app's own URL (`php artisan serve`, Herd, Sail), not Vite's dev server. For Storybook, each path is the story's `/iframe.html?id=…&viewMode=story`. Every state is captured at the widest viewport (1280), and `typical` and `overflow` at mobile width (390) too. Interaction states are captured at 1280, or at the `viewports` they name. Don't pass `--states` with `--matrix`: the script refuses both together. Put the user's named states in `interactions` instead.
 
 ## Temporary mode
 
-When the answer is `no`, `/design-critique` builds the same structure for one run and removes it afterwards: a stories file when the repo has Storybook, otherwise the `/__preview` route.
+When the answer is `no`, `/design-critique` builds the same structure for one run and removes it afterwards: a stories file when a React repo has Storybook, otherwise the `/__preview` route.
 
 1. Before creating anything, save `git status --porcelain --untracked-files=all` to `RUN/status-before.txt`. Any existing file the harness must edit (the Vite entry file, `routes/web.php`) must be clean. If one isn't, stop and ask the user to commit it first.
 2. Create the files, and write each path to `RUN/temp-harness.txt`, marked `created` or `edited`.
