@@ -17,6 +17,7 @@ A repo can opt out by adding a `.code-health-off` file at its root.
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -57,6 +58,24 @@ HINTS = {
 }
 
 
+# km scores the words inside template literals and heredocs ("if", "for", "and", "or") as
+# branches, so a prompt written in English reads as complex code. Comments and plain
+# strings are matched too, only so a backtick inside them isn't taken for a template.
+JS_TEXT = re.compile(r"""//[^\n]*|/\*.*?\*/|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`""", re.S)
+PHP_HEREDOC = re.compile(r"""(<<<[ \t]*(["']?)([A-Za-z_]\w*)\2\r?\n)(.*?)(\r?\n[ \t]*\3\b)""", re.S)
+
+
+def blank_prose(source, ext):
+    """Replace template-literal and heredoc text with spaces, keeping every newline."""
+    def blank(text):
+        return re.sub(r"[^\n]", " ", text)
+    if ext == ".php":
+        return PHP_HEREDOC.sub(lambda m: m[1] + blank(m[4]) + m[5], source)
+    if ext == ".rs":
+        return source
+    return JS_TEXT.sub(lambda m: "`" + blank(m[0][1:-1]) + "`" if m[0][0] == "`" else m[0], source)
+
+
 def hint(kind, ext):
     table = HINTS[kind]
     return table.get(ext) or table["js"]
@@ -83,7 +102,7 @@ def analyze(km, source, ext):
     if source is None:
         return {}, {}, 0
     with tempfile.TemporaryDirectory() as d:
-        (Path(d) / f"subject{ext}").write_text(source)
+        (Path(d) / f"subject{ext}").write_text(blank_prose(source, ext))
         funcs = {}
         for f in run_json(km, ["cogcom", "--per-function"], d):
             seen = {}
