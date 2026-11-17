@@ -1,6 +1,6 @@
-# Preview harness (React and Laravel Blade)
+# Preview harness (React, Laravel Blade and CodeIgniter 4)
 
-A preview renders one component (or, in Blade, a partial) in every state of its **state matrix**, with fixture data, at a URL the capture script can load. `/design-critique` captures the whole matrix from it instead of only the states a live route happens to show.
+A preview renders one component (or, in Blade, a partial; in CodeIgniter, a view cell or partial) in every state of its **state matrix**, with fixture data, at a URL the capture script can load. `/design-critique` captures the whole matrix from it instead of only the states a live route happens to show.
 
 `/pixie:design-setup` offers the harness once (step 7). The answer decides where previews live:
 
@@ -11,7 +11,7 @@ A preview renders one component (or, in Blade, a partial) in every state of its 
 | Has Storybook | no | A stories file, created for one critique run and removed afterwards. Storybook is launched with the repo's `storybook` script. | `temporary` |
 | No Storybook | no | The `/__preview` route, created for one critique run and removed afterwards | `temporary` |
 
-A Laravel Blade repo has no Storybook row: its previews always use the `/__preview` route, written in PHP and Blade (see [Laravel Blade](#laravel-blade)). An Inertia-React app uses the React harness. CodeIgniter screens are critiqued as live routes.
+A Laravel Blade or CodeIgniter 4 repo has no Storybook row: its previews always use the `/__preview` route, written in PHP (see [Laravel Blade](#laravel-blade) and [CodeIgniter 4](#codeigniter-4)). An Inertia-React app uses the React harness.
 
 ## The state matrix
 
@@ -34,9 +34,9 @@ If the component has no way to show a state (no error prop, no loading prop), re
 
 ## Fixtures
 
-- Use the app's own factories when it has them: JS builders in React (`test/factories`, `fishery`, `@faker-js/faker` builders, MSW handlers), model factories (`database/factories`) in Blade, always with `make()`, which builds models in memory, never `create()`, which saves them. Seed any randomness, so screenshots compare across runs.
-- Without factories, write the fixtures by hand, next to the preview.
-- Shapes match what production passes: the component's prop types, a Blade component's `@props` or class constructor, the variables a partial uses, or the API resource the page fetches (a Laravel `JsonResource`, an OpenAPI schema, the TypeScript type of the fetch result). Read the type; don't guess field names.
+- Use the app's own factories when it has them: JS builders in React (`test/factories`, `fishery`, `@faker-js/faker` builders, MSW handlers), model factories (`database/factories`) in Blade, and a model's `fake()` method through `Fabricator` in CodeIgniter, always with `make()`, which builds models in memory, never `create()`, which saves them. Seed any randomness, so screenshots compare across runs.
+- Without factories, write the fixtures by hand, next to the preview. A seeder's made-up rows can be copied into the preview, but never run a seeder: it writes to the database.
+- Shapes match what production passes: the component's prop types, a Blade component's `@props` or class constructor, a CodeIgniter view cell's public properties, the variables a partial uses, or the API resource the page fetches (a Laravel `JsonResource`, an OpenAPI schema, the TypeScript type of the fetch result). Read the type; don't guess field names.
 - **Never real data.** Don't query a database, call a live API or copy rows from one. Made-up names and values only.
 
 ## Storybook
@@ -293,6 +293,169 @@ Writing Blade previews:
 
 **A 404 from the route** has three usual causes: the app isn't running with `APP_ENV=local`, a route cache (`bootstrap/cache/routes-v7.php`) from before the install, or a URL on Vite's dev server instead of the app's.
 
+## CodeIgniter 4
+
+The same contract, served by CodeIgniter: `/__preview/<slug>?state=<name>`, the six required states, [the markers](#the-state-matrix) and the same matrix file. A preview renders a view cell (`view_cell('OrderListCell', [...])`) or a partial (`view('orders/_row', [...])`) inside the app's own layout, so the page gets the stylesheets and scripts that layout links. A view that extends a layout itself is a whole screen: critique it as a live route, or preview the cells and partials it's made of.
+
+**The gate.** CodeIgniter's `ENVIRONMENT` comes from `CI_ENVIRONMENT` (in `.env` or the server's environment) and is `production` when that's unset. `$routes->environment('development', ...)` registers routes only when it matches, so the route doesn't exist in production, or in `testing`, the environment PHPUnit runs in. The harness is a closure route, not a controller in `app/Controllers`, so auto-routing can't reach it either.
+
+Four pieces:
+
+**`app/Previews/<slug>.php`**, one per view cell or partial. It returns the states as closures that render HTML, plus any interaction states:
+
+```php
+<?php
+
+use App\Models\OrderModel;
+use CodeIgniter\Test\Fabricator;
+
+$orders = static fn (int $count, array $overrides = []) => (new Fabricator(OrderModel::class))
+    ->setOverrides($overrides)
+    ->make($count);
+$list = static fn (array $orders, array $extra = []) => view_cell('OrderListCell', array_merge(['orders' => $orders], $extra));
+
+// Each request renders one state, so each state builds only its own data.
+return [
+    'states' => [
+        'empty'    => static fn () => $list([]),
+        'single'   => static fn () => $list($orders(1)),
+        'typical'  => static fn () => $list($orders(8)),
+        'overflow' => static fn () => $list($orders(60, ['customer' => 'Maximiliana Featherstonehaugh-Wolfeschlegel'])),
+        'error'    => static fn () => $list([], ['error' => "We couldn't load your orders."]),
+        'loading'  => static fn () => $list([], ['loading' => true]),
+    ],
+    'interactions' => [
+        ['name' => 'menu open', 'from' => 'typical', 'steps' => [['click' => "button[aria-label='Row actions']"]]],
+    ],
+];
+```
+
+`Fabricator` builds rows from the model's `fake()` method, or guesses from its fields if it has none. It needs `fakerphp/faker`, which a development install has. A partial renders with `view('orders/_row', ['order' => $orders(1)[0]])`.
+
+**`app/Views/__preview.php`**, which puts the state inside the app's real layout. Use the layout the component's screens extend, from the inventory's layout shells:
+
+```php
+<?php // Pixie's preview harness: one state of a preview, inside the app's real layout. ?>
+<?= $this->extend('layouts/main') ?>
+
+<?= $this->section('content') ?>
+<div data-pixie-preview><?= $render() ?></div>
+<?= $this->endSection() ?>
+```
+
+Use the section name that layout renders with `renderSection()`.
+
+**`app/Config/PreviewRoutes.php`**, which renders one state and refuses an incomplete preview:
+
+```php
+<?php
+
+// Pixie's preview harness: renders one view, partial or view cell in one state of its matrix, for /design-critique.
+// app/Config/Routes.php loads this file only in the development environment.
+
+use CodeIgniter\Router\RouteCollection;
+use Config\Database;
+use Config\Toolbar;
+
+/** @var RouteCollection $routes */
+$routes->get('__preview/([a-z0-9-]+)', static function (string $slug) {
+    $required = ['empty', 'single', 'typical', 'overflow', 'error', 'loading'];
+    $state    = service('request')->getGet('state');
+    $state    = is_string($state) ? $state : 'typical';
+    $file     = APPPATH . "Previews/{$slug}.php";
+    // Served bare, without the layout, so a broken layout can't hide it.
+    $problem = static fn (string $message) => '<p role="alert" data-pixie-preview-error>' . esc($message) . '</p>';
+
+    // Keeps the debug toolbar out of the screenshots: it skips any request with a header listed here.
+    $toolbar = config(Toolbar::class);
+    if (property_exists($toolbar, 'disableOnHeaders')) {
+        $toolbar->disableOnHeaders['X-Pixie-Preview'] = null;
+        service('request')->setHeader('X-Pixie-Preview', '1');
+    }
+
+    // Previews never read or write a database: while one renders, every connection only pretends, so no query
+    // runs, and the last one asked for is shown as the problem. Asking still connects, so a database that's
+    // down shows as a connection error instead.
+    $connections = [];
+    $queried     = static function () use (&$connections): ?string {
+        foreach ($connections as [$db, $before]) {
+            if ($db->getLastQuery() !== $before) {
+                return "previews never query the database, but this was asked for: {$db->getLastQuery()}";
+            }
+        }
+
+        return null;
+    };
+    $buffers = ob_get_level();
+
+    try {
+        foreach (get_object_vars(config(Database::class)) as $group => $settings) {
+            if (is_array($settings) && isset($settings['DBDriver'])) {
+                $db            = Database::connect($group);
+                $connections[] = [$db, $db->getLastQuery()];
+                $db->pretend();
+            }
+        }
+
+        // Seeded, so Faker data is the same on every load and screenshots compare across runs.
+        mt_srand(1);
+
+        if (! is_file($file)) {
+            return $problem("No preview named {$slug}");
+        }
+        // Required in its own scope, so the preview's variables can't overwrite the harness's.
+        $states  = (static fn () => require $file)()['states'];
+        $missing = array_diff($required, array_keys($states));
+        if ($missing !== []) {
+            return $problem("Preview {$slug} is missing required states: " . implode(', ', $missing));
+        }
+        if (! array_key_exists($state, $states)) {
+            return $problem("Preview {$slug} has no state {$state}");
+        }
+
+        // The view calls the state while it renders, inside the guard, so the layout can't query either.
+        $html = view('__preview', ['render' => $states[$state]]);
+        $sql  = $queried();
+
+        return $sql === null ? $html : $problem("Preview {$slug} failed to render: {$sql}");
+    } catch (Throwable $e) {
+        // A view that throws leaves its output buffer open; drop its half-rendered HTML.
+        while (ob_get_level() > $buffers) {
+            ob_end_clean();
+        }
+
+        return $problem("Preview {$slug} failed to render: " . ($queried() ?? $e->getMessage()));
+    } finally {
+        foreach ($connections as [$db]) {
+            $db->pretend(false);
+        }
+    }
+});
+```
+
+If the layout needs more (a signed-in user, a locale), set it up in this route before rendering, with made-up values and nothing saved.
+
+**`app/Config/Routes.php`**, which loads the route only in development:
+
+```php
+// Pixie's preview harness, for /design-critique. Never registered outside development.
+// Untyped: before CodeIgniter 4.4 this file is in the Config namespace, where a RouteCollection type would fail.
+$routes->environment('development', static function ($routes): void {
+    require APPPATH . 'Config/PreviewRoutes.php';
+});
+```
+
+Writing CodeIgniter previews:
+- **A query in a preview** shows as the error, and never runs. The usual cause is `Fabricator::create()` or the `fake()` test helper, which both save: use `make()`. If the database is down, the error is "Unable to connect" instead of the query. The guard covers queries through the query builder, models and `query()` on the shared connection of every group in `app/Config/Database.php`. It doesn't cover `simpleQuery()`, a connection the code opens itself (`db_connect($group, false)`), or `prepare()`, which also switches the guard off for the rest of the render, so never use any of them in a preview.
+- **A query in the layout** (a view cell in the nav reading categories, sessions kept in the database) fails every state. Don't loosen the guard. Use a layout that doesn't query, if the app has one. Otherwise stop and tell the user which query runs, and ask how to give the layout made-up data in previews.
+- **`loading`.** A CodeIgniter page has no pending state of its own. Render the placeholder the page shows while it waits (a skeleton, a disabled "Saving…" button, an `aria-busy` region), or follow the matrix rule for a state the component can't show.
+- **Form errors.** For a form whose `error` state is validation messages, set them in that state's closure before rendering: `service('validation')->setError('email', 'That email is already taken.');`. `validation_show_error()`, `validation_list_errors()` and `validation_errors()` show them. They read the session first, so with sessions kept in the database, that's a query in the preview (see the layout note above).
+- **The debug toolbar** is kept off preview pages through `Config\Toolbar::$disableOnHeaders`. If it shows in a preview, `app/Config/Toolbar.php` predates that property: suggest adding it with the framework's default list (`X-Requested-With`, `HX-Request` and `X-Up-Version`, as in a new app's `Config/Toolbar.php`), never an empty one, which would put the toolbar into AJAX responses. If it still shows (a framework older than the property), tell the user it will appear in the screenshots.
+
+**Prove the exclusion** after installing, before recording the answer. Don't record `yes` until both pass:
+- `CI_ENVIRONMENT=development php -d variables_order=EGPCS spark routes` lists `__preview/([a-z0-9-]+)`, and `CI_ENVIRONMENT=production php -d variables_order=EGPCS spark routes` doesn't. The `-d` flag matters: without it, `CI_ENVIRONMENT` from `.env` wins over the one on the command line, and both runs check the same environment. Don't run it for `testing`: `spark` can't start in PHPUnit's environment.
+- Start the app (with the verifier's Launch section, or the launch command from step 5; if there's neither, ask the user for one, and confirm the command before running it). It must run in development: `CI_ENVIRONMENT = development` in `.env`. Load `/__preview/none` from the app's URL: it shows the harness's "No preview named none" message. A CodeIgniter error page, or "Preview none failed to render", means the harness needs adapting to the app (an older CodeIgniter, a custom `Config\Database`). A 404 means the app isn't running in development, or the URL isn't where the app's routes start (an app in a subfolder, or one without URL rewriting that needs `index.php/`). Stop the app afterwards.
+
 ## The matrix file
 
 `/design-critique` captures a preview by writing `RUN/matrix.json` from it and passing it to `capture.mjs --matrix`:
@@ -311,13 +474,13 @@ Writing Blade previews:
 }
 ```
 
-Paths resolve against `--url`, the origin that serves the preview route (or Storybook). In a Laravel app that's the app's own URL (`php artisan serve`, Herd, Sail), not Vite's dev server. For Storybook, each path is the story's `/iframe.html?id=…&viewMode=story`. Every state is captured at the widest viewport (1280), and `typical` and `overflow` at mobile width (390) too. Interaction states are captured at 1280, or at the `viewports` they name. Don't pass `--states` with `--matrix`: the script refuses both together. Put the user's named states in `interactions` instead.
+Paths resolve against `--url`, the origin that serves the preview route (or Storybook). In a Laravel app that's the app's own URL (`php artisan serve`, Herd, Sail), not Vite's dev server. In CodeIgniter it's the app's URL (`php spark serve`, at `http://localhost:8080` by default). For Storybook, each path is the story's `/iframe.html?id=…&viewMode=story`. Every state is captured at the widest viewport (1280), and `typical` and `overflow` at mobile width (390) too. Interaction states are captured at 1280, or at the `viewports` they name. Don't pass `--states` with `--matrix`: the script refuses both together. Put the user's named states in `interactions` instead.
 
 ## Temporary mode
 
 When the answer is `no`, `/design-critique` builds the same structure for one run and removes it afterwards: a stories file when a React repo has Storybook, otherwise the `/__preview` route.
 
-1. Before creating anything, save `git status --porcelain --untracked-files=all` to `RUN/status-before.txt`. Any existing file the harness must edit (the Vite entry file, `routes/web.php`) must be clean. If one isn't, stop and ask the user to commit it first.
+1. Before creating anything, save `git status --porcelain --untracked-files=all` to `RUN/status-before.txt`. Any existing file the harness must edit (the Vite entry file, `routes/web.php`, `app/Config/Routes.php`) must be clean. If one isn't, stop and ask the user to commit it first.
 2. Create the files, and write each path to `RUN/temp-harness.txt`, marked `created` or `edited`.
 3. In cleanup, delete every `created` file and any folder the run made, and `git restore` every `edited` one.
 4. Run the same `git status` again. Its output must match `RUN/status-before.txt`. If it doesn't, say which files differ and fix them before ending the run.
