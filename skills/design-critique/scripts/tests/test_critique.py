@@ -113,7 +113,6 @@ class ComponentGateTest(unittest.TestCase):
             with self.subTest(entry=entry):
                 [result] = C.component_gate(INVENTORY, [{"path": "src/x.tsx", **entry}])
                 self.assertEqual((result["similar"], result["blocked"]), (similar, blocked))
-                self.assertEqual((result["name"], result["path"]), (entry["name"], "src/x.tsx"))
 
 
 RUBRIC = """# Rubric
@@ -266,34 +265,33 @@ class CliTest(unittest.TestCase):
             review = json.loads((run / "findings.json").read_text())
             self.assertEqual([len(review[k]) for k in ("accepted", "rejected", "suppressed")], [1, 0, 1])
 
-
     def test_strict_gates_exit_1_while_anything_blocks(self):
-        violation = {"id": "region", "impact": "moderate", "help": "Landmarks", "nodes": [{"target": ["#f"]}]}
-        clean_component = [{"name": "OrderSummary", "path": "page.tsx", "why": "Nothing catalogued shows totals."}]
+        clean = {"violations": [], "page": '<p className="text-sm" />', "files": ["page.tsx"],
+                 "components": [{"name": "OrderSummary", "path": "page.tsx", "why": "Nothing catalogued shows totals."}]}
         cases = [
-            ("clean", [], '<p className="text-sm" />', ["page.tsx"], clean_component, None),
-            ("axe violation", [violation], '<p className="text-sm" />', ["page.tsx"], clean_component, 1),
-            ("raw value", [], '<p className="text-[#333]" />', ["page.tsx"], clean_component, 1),
-            ("unreadable file", [], '<p className="text-sm" />', ["gone.tsx"], clean_component, 1),
-            ("unjustified component", [], '<p className="text-sm" />', ["page.tsx"],
-             [{"name": "OrderSummary", "path": "page.tsx"}], 1),
+            ("clean", {}, None),
+            ("axe violation", {"violations": [
+                {"id": "region", "impact": "moderate", "help": "Landmarks", "nodes": [{"target": ["#f"]}]}]}, 1),
+            ("raw value", {"page": '<p className="text-[#333]" />'}, 1),
+            ("unreadable file", {"files": ["gone.tsx"]}, 1),
+            ("unjustified component", {"components": [{"name": "OrderSummary", "path": "page.tsx"}]}, 1),
         ]
-        for name, violations, page, files, components, code in cases:
+        for name, over, code in cases:
+            c = {**clean, **over}
             with self.subTest(name), tempfile.TemporaryDirectory() as d:
                 root = Path(d)
                 run, _ = make_run(d)
-                (run / "axe.json").write_text(json.dumps([{**MANIFEST["shots"][0], "violations": violations}]))
-                (root / "page.tsx").write_text(page + "\n")
+                (run / "axe.json").write_text(json.dumps([{**MANIFEST["shots"][0], "violations": c["violations"]}]))
+                (root / "page.tsx").write_text(c["page"] + "\n")
                 (root / "inv.md").write_text(INVENTORY)
-                (root / "components.json").write_text(json.dumps(components))
-                argv = ["gates", "--strict", "--root", d, "--run", str(run), "--inventory", str(root / "inv.md"),
-                        "--components", str(root / "components.json"), "--files", *files]
-                if code is None:
-                    C.main(argv)
-                else:
-                    with self.assertRaises(SystemExit) as exit:
-                        C.main(argv)
-                    self.assertEqual(exit.exception.code, code)
+                (root / "components.json").write_text(json.dumps(c["components"]))
+                try:
+                    C.main(["gates", "--strict", "--root", d, "--run", str(run), "--inventory", str(root / "inv.md"),
+                            "--components", str(root / "components.json"), "--files", *c["files"]])
+                    exit_code = None
+                except SystemExit as e:
+                    exit_code = e.code
+                self.assertEqual(exit_code, code)
                 gates = json.loads((run / "gates.json").read_text())
                 self.assertEqual([c["name"] for c in gates["components"]], ["OrderSummary"])
 

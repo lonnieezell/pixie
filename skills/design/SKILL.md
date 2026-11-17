@@ -29,13 +29,7 @@ Make a run folder outside the repo with `mktemp -d "${TMPDIR:-/tmp}/pixie-design
 
 **Missing `docs/agents/design-system.md`:** do a fast setup inline. Read `SETUP/SKILL.md` and follow its steps 1 to 6, with two cuts: skip the **Patterns** scan (write `Not scanned: run /pixie:design-setup to fill it.` under `## Patterns`), and from step 7 ask only offers 2 (Playwright) and 4 (preview harness), which this run needs. Tell the user `/pixie:design-setup` fills in the rest later.
 
-**The file exists:** check it's fresh. Read `Source commit` and `Scanned paths` from its header, then run:
-
-```bash
-git diff --name-status --no-renames SHA HEAD -- PATHS
-```
-
-If it lists anything, refresh the inventory as `SETUP/SKILL.md` step 8 describes before going on. A direction built on stale components can reuse one that's gone or miss one that's new.
+**The file exists:** run the freshness check and refresh in `SETUP/SKILL.md` step 8 (its steps 1 to 6; skip its offers). A direction built on stale components can reuse one that's gone or miss one that's new.
 
 Then read its `## Stack`, `## Tokens`, `## Components`, `## Layout shells`, `## Preview surface`, `## Launch fallback` and `## Rules`, and `liveVerify.design` in `docs/agents/pixie.json` (a missing file or key means `true`). A stack the harness doesn't cover (anything but React, Laravel Blade and CodeIgniter 4) can't be previewed: say so and stop.
 
@@ -46,7 +40,7 @@ Work out, from the code and by asking only what the code can't tell you:
 - **The data:** its real shapes, read from the types production passes (props, an API resource, a Blade component's `@props`, a view cell's properties). Note the ranges that matter: none, one, typical, too many, long text.
 - **Neighbouring screens:** 1–2 that share this one's layout shell or link to it. Directions must sit well beside them.
 
-Write these to `RUN/frame.md`, in a few lines each.
+Write these to `RUN/frame.md`, in a few lines each. The decision record's **Frame** section comes from it.
 
 ## 3. Direction brief (text only)
 
@@ -63,7 +57,7 @@ Directions must differ on the axes: no two may sit at the same position on every
 
 **Wildcard.** Only when the user asked for one. One extra direction that breaks a named house convention (a rule from `## Rules`, a layout shell, a catalogued pattern), labelled **Wildcard**, saying which convention it breaks and why that might pay off. Never add one on your own.
 
-Write the brief to `RUN/brief.md`, and each direction on its own to `RUN/directions/NAME/direction.md`. Print the brief:
+Print the brief:
 
 ```markdown
 ## Directions for the order list
@@ -80,7 +74,7 @@ Axes: **Density** (compact ↔ roomy), **Disclosure** (everything at once ↔ pr
 ...
 ```
 
-**Stop here for approval.** Ask with AskUserQuestion: approve the brief, or change it (an axis, a direction, a component). Revise and ask again until the user approves. Write nothing to the repo before then.
+**Stop here for approval.** Ask with AskUserQuestion: approve the brief, or change it (an axis, a direction, a component). Revise and ask again until the user approves. Write nothing to the repo before then. Once approved, write each direction's section of the brief, with the axes line, to `RUN/directions/NAME/direction.md`.
 
 ## 4. Build the previews
 
@@ -100,25 +94,25 @@ For each direction, write:
 
 Get the capture tools and the app running as `CRITIQUE/SKILL.md` steps 2 and 3 describe, including its fallbacks (a browser MCP when there's no Node; stop when there's no browser at all) and the dependency-file check.
 
-Capture every direction, and each neighbouring screen once:
-
-```bash
-node CRITIQUE/scripts/capture.mjs --url "ORIGIN" --out "RUN/directions/NAME" --matrix RUN/directions/NAME/matrix.json [--storage-state RUN/auth.json]
-node CRITIQUE/scripts/capture.mjs --url "NEIGHBOUR_URL" --out "RUN/neighbour-1" --viewports 1280 [--storage-state RUN/auth.json]
-```
-
-`CRITIQUE/SKILL.md` step 4 explains its exit codes and errors. Then gate each direction, passing the files from its `files.txt` that hold its markup and styles (the preview and its new components, not fixture files):
+**Gate the source first.** For each direction, pass the files from its `files.txt` that hold its markup and styles (the preview and its new components, not fixture files):
 
 ```bash
 python3 CRITIQUE/scripts/critique.py gates --strict --run "RUN/directions/NAME" \
   --components RUN/directions/NAME/components.json --files FILE...
 ```
 
-Exit 1 means something blocks, and `RUN/directions/NAME/gates.json` says what. **A direction can't go on to critique until its gates pass.** Fix it, capture again, and gate again:
-- `axe`: fix the markup or the token use, never by hiding the element.
-- `tokens`: use the inventory's tokens instead. If a hit isn't a colour or size (a `#123` in a comment), reword it: these are files this run wrote. If the inventory's `## Rules` explicitly allows that raw value, tell the user, and go on only if they agree.
-- `skipped`: fix the path.
+Before the first capture there's no `axe.json`, so this checks only the source. Exit 1 means something blocks, and `RUN/directions/NAME/gates.json` says what. **A direction can't be captured or critiqued until its gates pass.** Fix it and gate again:
+- `tokens` and `skipped`: triage and fix them as `CRITIQUE/SKILL.md` step 5 says, using the inventory's tokens. A hit that isn't a colour or size (a `#123` in a comment) is in a file this run wrote: reword it. A raw value the inventory's `## Rules` allows still needs the user's agreement to go on.
 - `components`: `same name as a catalogued component` means use the catalogued one, or rename it if it really is different. A missing reason means write one, or use a catalogued component. Show the user each new component's `similar` list with its reason.
+
+**Then capture** every direction, and each neighbouring screen once. The captures don't depend on each other, so run them as parallel background commands:
+
+```bash
+node CRITIQUE/scripts/capture.mjs --url "ORIGIN" --out "RUN/directions/NAME" --matrix RUN/directions/NAME/matrix.json [--storage-state RUN/auth.json]
+node CRITIQUE/scripts/capture.mjs --url "NEIGHBOUR_URL" --out "RUN/neighbour-1" --viewports 1280 [--storage-state RUN/auth.json]
+```
+
+`CRITIQUE/SKILL.md` step 4 explains its exit codes and errors. Run each direction's gates again, now with its `axe.json`. An `axe` violation is fixed in the markup or the token use, never by hiding the element. Then capture and gate that direction again.
 
 In browser-MCP mode there's no axe report: tell the user the accessibility gate couldn't run, and record that in the decision record.
 
@@ -133,8 +127,6 @@ python3 CRITIQUE/scripts/critique.py brief --run "RUN/directions/NAME" --rubric 
   [--extra RUN/extra-rubric.md] --direction RUN/directions/NAME/direction.md [--neighbours RUN/neighbour-*/shots/*.png]
 ```
 
-The critic's folder holds the direction's full state matrix at 1280, `typical` and `overflow` at 390, the neighbours' screenshots, the rubric, the house rules and the direction itself. No source code.
-
 **Critics, in parallel.** Start one `pixie:design-critic` agent per direction, all in one message. Give each only the absolute path of its own `RUN/directions/NAME/critic` folder: no code, no repo paths, and nothing about the other directions. Save each reply to `RUN/directions/NAME/critic-findings.json` (if one isn't a JSON array, ask that critic once to answer in its format), then:
 
 ```bash
@@ -148,7 +140,7 @@ python3 CRITIQUE/scripts/critique.py review --run "RUN/directions/NAME" --findin
 For each direction, print: its axis positions and trade-off, its gate results, its remaining findings by severity with their titles, and the path of its `typical` screenshots at 1280 and 390 (`RUN/directions/NAME/shots/`), so the user can open them. Then ask with AskUserQuestion:
 
 - **Pick one** of the directions.
-- **Blend:** the user says what to take from which (the layout of one, the density of another). Build the blend as one more direction, with its own `direction.md` naming what it takes from where, then run steps 4 to 6 for it, with one fix round. Then ask again.
+- **Blend:** the user says what to take from which (the layout of one, the density of another). Build the blend as one more direction, with its own `direction.md` naming what it takes from where, then run steps 4 to 6 for it, with one fix round. Reuse the neighbours already captured. Then ask again.
 - **None of these:** go back to step 3 with what the user said. Delete every direction's files first (step 8's deletion, for all of them).
 
 ## 8. Clean up and record
