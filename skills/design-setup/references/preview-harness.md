@@ -374,7 +374,7 @@ $routes->get('__preview/([a-z0-9-]+)', static function (string $slug) {
     }
 
     // Previews never read or write a database: while one renders, every connection only pretends, so no query
-    // runs, and the first one asked for is shown as the problem. Asking still connects, so a database that's
+    // runs, and the last one asked for is shown as the problem. Asking still connects, so a database that's
     // down shows as a connection error instead.
     $connections = [];
     $queried     = static function () use (&$connections): ?string {
@@ -439,22 +439,22 @@ If the layout needs more (a signed-in user, a locale), set it up in this route b
 
 ```php
 // Pixie's preview harness, for /design-critique. Never registered outside development.
-// Untyped: before CodeIgniter 4.4 this file is in the Config namespace, where RouteCollection means something else.
+// Untyped: before CodeIgniter 4.4 this file is in the Config namespace, where a RouteCollection type would fail.
 $routes->environment('development', static function ($routes): void {
     require APPPATH . 'Config/PreviewRoutes.php';
 });
 ```
 
 Writing CodeIgniter previews:
-- **A query in a preview** shows as the error, and never runs. The usual cause is `Fabricator::create()` or the `fake()` test helper, which both save: use `make()`. If the database is down, the error is "Unable to connect" instead of the query. The guard covers queries through the query builder, models and `query()` on the shared connection of every group in `app/Config/Database.php`. It doesn't cover `simpleQuery()` or a connection the code opens itself (`db_connect($group, false)`), so never use either in a preview.
+- **A query in a preview** shows as the error, and never runs. The usual cause is `Fabricator::create()` or the `fake()` test helper, which both save: use `make()`. If the database is down, the error is "Unable to connect" instead of the query. The guard covers queries through the query builder, models and `query()` on the shared connection of every group in `app/Config/Database.php`. It doesn't cover `simpleQuery()`, a connection the code opens itself (`db_connect($group, false)`), or `prepare()`, which also switches the guard off for the rest of the render, so never use any of them in a preview.
 - **A query in the layout** (a view cell in the nav reading categories, sessions kept in the database) fails every state. Don't loosen the guard. Use a layout that doesn't query, if the app has one. Otherwise stop and tell the user which query runs, and ask how to give the layout made-up data in previews.
 - **`loading`.** A CodeIgniter page has no pending state of its own. Render the placeholder the page shows while it waits (a skeleton, a disabled "Saving…" button, an `aria-busy` region), or follow the matrix rule for a state the component can't show.
 - **Form errors.** For a form whose `error` state is validation messages, set them in that state's closure before rendering: `service('validation')->setError('email', 'That email is already taken.');`. `validation_show_error()`, `validation_list_errors()` and `validation_errors()` show them. They read the session first, so with sessions kept in the database, that's a query in the preview (see the layout note above).
-- **The debug toolbar** is kept off preview pages through `Config\Toolbar::$disableOnHeaders`. If it shows in a preview, `app/Config/Toolbar.php` predates that property: suggest adding `public array $disableOnHeaders = [];` to it. If it still shows (a framework older than the property), tell the user it will appear in the screenshots.
+- **The debug toolbar** is kept off preview pages through `Config\Toolbar::$disableOnHeaders`. If it shows in a preview, `app/Config/Toolbar.php` predates that property: suggest adding it with the framework's default list (`X-Requested-With`, `HX-Request` and `X-Up-Version`, as in a new app's `Config/Toolbar.php`), never an empty one, which would put the toolbar into AJAX responses. If it still shows (a framework older than the property), tell the user it will appear in the screenshots.
 
 **Prove the exclusion** after installing, before recording the answer. Don't record `yes` until both pass:
 - `CI_ENVIRONMENT=development php -d variables_order=EGPCS spark routes` lists `__preview/([a-z0-9-]+)`, and `CI_ENVIRONMENT=production php -d variables_order=EGPCS spark routes` doesn't. The `-d` flag matters: without it, `CI_ENVIRONMENT` from `.env` wins over the one on the command line, and both runs check the same environment. Don't run it for `testing`: `spark` can't start in PHPUnit's environment.
-- Start the app (with the verifier's Launch section, or the launch command from step 5; if there's neither, ask the user for one, and confirm the command before running it). It must run in development: `CI_ENVIRONMENT = development` in `.env`. Load `/__preview/none` from the app's URL: it shows the harness's "No preview named none" message. A CodeIgniter error page means the harness needs adapting to the app (an older CodeIgniter, a renamed `Config\Database`). A 404 means the app isn't running in development. Stop the app afterwards.
+- Start the app (with the verifier's Launch section, or the launch command from step 5; if there's neither, ask the user for one, and confirm the command before running it). It must run in development: `CI_ENVIRONMENT = development` in `.env`. Load `/__preview/none` from the app's URL: it shows the harness's "No preview named none" message. A CodeIgniter error page, or "Preview none failed to render", means the harness needs adapting to the app (an older CodeIgniter, a custom `Config\Database`). A 404 means the app isn't running in development, or the URL isn't where the app's routes start (an app in a subfolder, or one without URL rewriting that needs `index.php/`). Stop the app afterwards.
 
 ## The matrix file
 
