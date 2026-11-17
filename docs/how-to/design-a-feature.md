@@ -27,7 +27,7 @@ Name one component, section or page, and what it's for if that isn't obvious:
 
 Add `with a wildcard` to get one extra direction that deliberately breaks a house convention.
 
-Claude asks what the code can't tell it (who uses the screen, for what), then prints a **brief**: the axes that matter for this screen, such as `Density: compact ↔ roomy`, and 2 directions for a component or 3 for a page, each placed on those axes. Each direction lists the catalogued components it's built from and a one-sentence trade-off.
+Claude asks what the code can't tell it (who uses the screen, for what), then prints a short **frame**: who uses the screen, their task, the data it shows and the neighbouring screens. If any of that is wrong, stop it or correct it there. Then it prints a **brief**: the axes that matter for this screen, such as `Density: compact ↔ roomy`, and 2 directions for a component or 3 for a page, each placed on those axes. Each direction lists the catalogued components it's built from and a one-sentence trade-off.
 
 Nothing is built yet. Change anything you like: an axis, a direction, a component it uses. Approve when the directions are the real alternatives you want to see.
 

@@ -42,6 +42,18 @@ Work out, from the code and by asking only what the code can't tell you:
 
 Write these to `RUN/frame.md`, in a few lines each. The decision record's **Frame** section comes from it.
 
+Then print a short summary of the frame, one line each for who, task, data and neighbours, so the user can stop the run or correct it before the brief is built on a wrong assumption:
+
+```text
+Frame for the order list:
+- Who: warehouse staff, on a tablet at the packing desk
+- Task: find the next order to pack and mark it packed
+- Data: Order (id, customer, items[], status, placedAt); 0 to ~200 open orders, long customer names
+- Neighbours: /orders/:id (order detail), /dashboard
+```
+
+Carry on to step 3 without waiting. If the user corrects the frame, update `RUN/frame.md` before writing the brief.
+
 ## 3. Direction brief (text only)
 
 **Axes.** Name the design choices that matter most for this task, each as a spectrum with two named poles: `Density: compact ↔ roomy`, `Disclosure: everything at once ↔ progressive`, `Emphasis: data first ↔ action first`, `Navigation: in place ↔ separate page`. Pick axes the frame makes real trade-offs on, not cosmetic ones.

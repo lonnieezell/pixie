@@ -236,7 +236,7 @@ Explores 2–4 design directions for one component, section or page, renders eac
 **How it works:**
 
 1. Checks the design inventory is fresh, and refreshes it if the scanned files changed. With no inventory, it runs a quick version of `design-setup` first.
-2. Frames the work: who uses the screen, for what task, with which data, next to which screens.
+2. Frames the work: who uses the screen, for what task, with which data, next to which screens. It prints a short summary of the frame, so you can stop or correct it before the brief.
 3. Writes a text brief: 2–4 named axes (such as `Density: compact ↔ roomy`) and the directions placed on them, each built from catalogued components, with a one-sentence trade-off. A component, or a section of a screen, gets 2 directions and a page gets 3, up to 4 if you ask. A wildcard that breaks a house convention appears only when you ask for one. **It stops here until you approve the brief.**
 4. Builds each direction as a preview, with the full state matrix and the same fixtures in each, using the inventory's preferred components. A new component needs a stated reason the catalogued ones didn't fit.
 5. Captures each direction and runs blocking gates: zero axe violations, no raw hex colours or arbitrary values, and no new component that duplicates a catalogued one or lacks a reason. A direction can't move on until its gates pass.
