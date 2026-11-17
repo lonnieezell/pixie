@@ -43,11 +43,20 @@
 
 The user's reasons, in their words where they gave them, and what the evidence showed: which findings and trade-offs decided it, and anything taken from the other directions in a blend.
 
+## Production
+
+- **Files:** `src/components/orders/OrderList.tsx`, `src/components/orders/OrderSummary.tsx`
+- **Tests:** one per state, each red before its code was written:
+
+  | State | Test | Red |
+  |---|---|---|
+  | empty | `OrderList.test.tsx` "shows the add-order action when there are no orders" | `Unable to find role "button" with name "Add order"` |
+
+- **Gates:** axe 0, raw values 0 (or what still fails after 2 rounds)
+- **Drift from the approved direction:** S2 `direction.drift` TITLE, [typical, 1280](YYYY-MM-DD-SLUG/production-typical-1280.png) (or "none")
+- **Other findings:** S3 `ID` TITLE (or "none")
+
 ## Not checked
 
-Anything a gate or critic couldn't cover: the axe gate in browser-MCP mode, states that couldn't be captured, rejected critic findings with their reasons.
-
-## Next
-
-Build NAME into production code, using the preview's states as the behaviour to test.
+Anything a gate or critic couldn't cover: the axe gate in browser-MCP mode, states that couldn't be captured, states without a test and why, rejected critic findings with their reasons.
 ````

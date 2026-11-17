@@ -184,6 +184,34 @@ class BriefTest(unittest.TestCase):
             self.assertFalse((critic / "neighbours").exists())
             self.assertTrue((critic / "shots" / "default-390.png").exists())
 
+    def test_approved_direction_lets_the_critic_report_drift(self):
+        drift = finding(rubric="direction.drift",
+                        observed="The approved summary card above the table is missing from the production screen.")
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            run, _ = make_run(d)
+            approved, _ = make_run(root / "winner")
+            (root / "rubric.md").write_text(RUBRIC + "| `direction.drift` | Matches the approved shot. | S2 |\n")
+            (root / "found.json").write_text(json.dumps([drift]))
+            base = ["--run", str(run), "--inventory", str(root / "none.md")]
+
+            C.main(["brief", *base, "--rubric", str(root / "rubric.md")])
+            C.main(["review", *base, "--findings", str(root / "found.json")])
+            self.assertEqual(json.loads((run / "findings.json").read_text())["rejected"][0]["reason"],
+                             "no approved screenshots to drift from")
+
+            C.main(["brief", *base, "--rubric", str(root / "rubric.md"), "--approved", str(approved)])
+            C.main(["review", *base, "--findings", str(root / "found.json")])
+            self.assertEqual(len(json.loads((run / "findings.json").read_text())["accepted"]), 1)
+            self.assertEqual(sorted(p.name for p in (run / "critic" / "approved").iterdir()),
+                             ["default-1280.png", "default-390.png"])
+
+            (approved / "manifest.json").write_text(json.dumps({**MANIFEST, "shots": []}))
+            C.main(["brief", *base, "--rubric", str(root / "rubric.md"), "--approved", str(approved)])
+            C.main(["review", *base, "--findings", str(root / "found.json")])
+            self.assertEqual(json.loads((run / "findings.json").read_text())["rejected"][0]["reason"],
+                             "no approved screenshots to drift from")
+
 
 def finding(**over):
     f = {
@@ -311,6 +339,7 @@ class CliTest(unittest.TestCase):
                          ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--direction", f"{d}/gone.md"],
                          ["brief", "--run", str(run), "--rubric", f"{d}/gone.md"],
                          ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--extra", f"{d}/gone.md"],
+                         ["brief", "--run", str(run), "--rubric", f"{d}/r.md", "--approved", f"{d}/gone"],
                          ["review", "--run", str(run), "--findings", f"{d}/gone.json"]):
                 with self.subTest(argv[0]), self.assertRaises(SystemExit) as exit:
                     C.main(argv)

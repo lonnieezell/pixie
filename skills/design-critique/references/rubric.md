@@ -33,6 +33,7 @@ The typical severity below is a starting point. Raise or lower it for what the s
 | `color.palette` | Colours look drawn from one small palette that matches the neighbouring screens. | S4 |
 | `consistency.neighbours` | Shared parts (header, buttons, cards, form fields, spacing) look the same as on the neighbouring screens. | S3 |
 | `consistency.repeats` | Repeated elements on this screen (rows, cards, buttons of the same kind) look identical. | S3 |
+| `direction.drift` | Only when there are approved screenshots: the screen looks like the approved one of the same name. | S2 |
 | `states.feedback` | The captured state shows clear feedback: errors next to the field they're about, a visible loading indicator, a confirmation after an action. | S2 |
 | `states.empty` | An empty state says what's missing and offers the next step. It isn't a blank area. | S3 |
 | `interaction.targets` | At the narrow width, tap targets look at least 44px high and aren't crowded together. | S2 |

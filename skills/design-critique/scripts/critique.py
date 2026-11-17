@@ -59,8 +59,9 @@ def merge_rubric(rubric, extra):
     return rubric.rstrip("\n") + "\n\n## Added for this repo\n\n| ID | Check | Typical severity |\n|---|---|---|\n" + "\n".join(rows) + "\n"
 
 
-def brief(run, inventory, rubric, extra, neighbours, direction=""):
-    """Build the critic's folder: screenshots, manifest, rubric and house rules. Never code."""
+def brief(run, inventory, rubric, extra, neighbours, direction="", approved=None):
+    """Build the critic's folder: screenshots, manifest, rubric and house rules. Never code. With `approved` (the run
+    folder of the direction the user picked), the critic also gets its screenshots, to judge drift from."""
     run = Path(run)
     critic = run / "critic"
     shutil.rmtree(critic, ignore_errors=True)
@@ -72,6 +73,10 @@ def brief(run, inventory, rubric, extra, neighbours, direction=""):
         (critic / "neighbours").mkdir()
         for number, png in enumerate(map(Path, neighbours), 1):
             shutil.copyfile(png, critic / "neighbours" / f"{number}-{png.name}")
+    if approved:
+        (critic / "approved").mkdir()
+        for shot in json.loads((Path(approved) / "manifest.json").read_text())["shots"]:
+            shutil.copyfile(Path(approved) / shot["file"], critic / "approved" / Path(shot["file"]).name)
     (critic / "manifest.json").write_text(json.dumps(manifest, indent=2))
     (critic / "rubric.md").write_text(merge_rubric(rubric, extra))
     (critic / "context.md").write_text(
@@ -95,7 +100,7 @@ def rubric_ids(rubric):
     return set(first_column(rubric))
 
 
-def rejection(f, ids, shots):
+def rejection(f, ids, shots, approved):
     for field in REQUIRED:
         value = f.get(field)
         if value in (None, ""):
@@ -110,6 +115,8 @@ def rejection(f, ids, shots):
         return "observed is too vague"
     if f["rubric"] not in ids:
         return "unknown rubric item"
+    if f["rubric"] == "direction.drift" and not approved:
+        return "no approved screenshots to drift from"
     shot = shots.get(f["screenshot"])
     if not shot:
         return "screenshot not captured"
@@ -126,13 +133,14 @@ def review_findings(critic, inventory, findings):
     ids = rubric_ids((critic / "rubric.md").read_text())
     shots = {s["file"]: s for s in json.loads((critic / "manifest.json").read_text())["shots"]}
     drop = dropped(inventory)
+    approved = (critic / "approved").is_dir() and any((critic / "approved").iterdir())
     if not isinstance(findings, list) or not all(isinstance(f, dict) for f in findings):
         raise ValueError("the critic's reply must be a JSON array of finding objects")
     result = {"accepted": [], "rejected": [], "suppressed": []}
     for f in findings:
         if isinstance(f.get("rubric"), str) and f["rubric"] in drop:
             result["suppressed"].append(f)
-        elif reason := rejection(f, ids, shots):
+        elif reason := rejection(f, ids, shots, approved):
             result["rejected"].append({"finding": f, "reason": reason})
         else:
             result["accepted"].append(f)
@@ -219,6 +227,7 @@ def main(argv=None):
     b.add_argument("--extra", help="extra rubric rows from installed design skills")
     b.add_argument("--neighbours", nargs="*", default=[])
     b.add_argument("--direction", help="the design direction this screen was built to, from /design's brief")
+    b.add_argument("--approved", help="run folder of the approved direction, to check the screen for drift from it")
     r = sub.add_parser("review", help="validate, suppress and rank the critic's findings -> RUN/findings.json")
     r.add_argument("--findings", required=True)
     for s in (g, b, r):
@@ -228,6 +237,8 @@ def main(argv=None):
     for given in (getattr(a, name, None) for name in ("components", "direction", "rubric", "extra", "findings")):
         if given and not Path(given).is_file():
             p.error(f"no such file: {given}")
+    if getattr(a, "approved", None) and not (Path(a.approved) / "manifest.json").is_file():
+        p.error(f"no manifest.json in {a.approved}")
     run, inventory = Path(a.run), read(a.inventory)
 
     if a.cmd == "gates":
@@ -245,7 +256,7 @@ def main(argv=None):
         if a.strict and (axe or tokens or skipped or blocked):
             raise SystemExit(1)
     elif a.cmd == "brief":
-        print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours, read(a.direction)))
+        print(brief(run, inventory, read(a.rubric), read(a.extra), a.neighbours, read(a.direction), a.approved))
     else:
         result = review_findings(run / "critic", inventory, json.loads(read(a.findings)))
         (run / "findings.json").write_text(json.dumps(result, indent=2))
