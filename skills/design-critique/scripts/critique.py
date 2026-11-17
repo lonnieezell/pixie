@@ -163,6 +163,39 @@ def token_gate(root, inventory, files):
     return hits, skipped
 
 
+CATALOGUED = re.compile(r"^\|\s*`([^`]+)`\s*\|", re.M)
+
+
+def name_words(name):
+    """`<x-status-badge>`, `StatusBadge` and `status_badge` all give ['status', 'badge']. A Blade `x-` prefix and
+    a CI4 `Cell` or `Component` suffix are dropped, so `AlertCell` compares as 'alert'."""
+    words = [w.lower() for w in re.findall(r"[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+", name)]
+    if words[:1] == ["x"]:
+        words = words[1:]
+    while words[-1:] in (["cell"], ["component"]):
+        words = words[:-1]
+    return words
+
+
+def component_gate(inventory, entries):
+    """For each component a design direction adds: the catalogued components of the same kind (same last word),
+    and why it's blocked, if it is: no stated reason, or the same name as a catalogued one."""
+    catalogue = CATALOGUED.findall(section(inventory, "Components"))
+    results = []
+    for entry in entries:
+        words = name_words(entry["name"])
+        similar = [c for c in catalogue if name_words(c)[-1:] == words[-1:]]
+        if any(name_words(c) == words for c in similar):
+            blocked = "same name as a catalogued component"
+        elif not str(entry.get("why") or "").strip():
+            blocked = "no reason the catalogued components didn't fit"
+        else:
+            blocked = None
+        results.append({"name": entry["name"], "path": entry["path"], "why": entry.get("why", ""),
+                        "similar": similar, "blocked": blocked})
+    return results
+
+
 def read(path):
     """A file's text, or '' when it's missing (a repo without a design inventory)."""
     return Path(path).read_text() if path and Path(path).exists() else ""

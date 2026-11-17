@@ -20,6 +20,15 @@ Source files: `tailwind.config.js`, `resources/css/app.css`
 |---|---|---|---|
 | primary | `brand-600` | `#4f46e5` | `tailwind.config.js:12` |
 
+## Components
+
+| Name | Path / import | Props and variants | When to use | Status |
+|---|---|---|---|---|
+| `Button` | `@/components/ui/button` | `variant` | Every action | preferred (annotation) |
+| `PrimaryButton` | `@/components/PrimaryButton` | `disabled` | Don't use | legacy (annotation) |
+| `<x-status-badge>` | `resources/views/components/status-badge.blade.php` | `status` | Order status | preferred (inferred: only one) |
+| `AlertCell` | `view_cell('App\\Cells\\AlertCell::show')` | `type` | Flash messages | preferred (inferred: only one) |
+
 ## Rules
 
 - Colours come from tokens.
@@ -84,6 +93,27 @@ class TokenGateTest(unittest.TestCase):
             hits, skipped = C.token_gate(root, INVENTORY, ["./resources/css/app.css", "page.tsx", "gone.tsx", "resources"])
             self.assertEqual([(h["file"], h["match"]) for h in hits], [("page.tsx", "text-[#333]")])
             self.assertEqual(skipped, ["gone.tsx", "resources"])
+
+
+class ComponentGateTest(unittest.TestCase):
+    def test_checks_new_components_against_the_catalogue(self):
+        why = "The catalogued badge has no room for a count."
+        cases = [
+            ({"name": "OrderSummary", "why": why}, [], None),
+            ({"name": "IconButton", "why": why}, ["Button", "PrimaryButton"], None),
+            ({"name": "order-badge", "why": why}, ["<x-status-badge>"], None),
+            ({"name": "<x-count-badge>", "why": why}, ["<x-status-badge>"], None),
+            ({"name": "NoticeAlert", "why": why}, ["AlertCell"], None),
+            ({"name": "OrderSummary", "why": "  "}, [], "no reason the catalogued components didn't fit"),
+            ({"name": "OrderSummary"}, [], "no reason the catalogued components didn't fit"),
+            ({"name": "button", "why": why}, ["Button", "PrimaryButton"], "same name as a catalogued component"),
+            ({"name": "x-status-badge", "why": why}, ["<x-status-badge>"], "same name as a catalogued component"),
+        ]
+        for entry, similar, blocked in cases:
+            with self.subTest(entry=entry):
+                [result] = C.component_gate(INVENTORY, [{"path": "src/x.tsx", **entry}])
+                self.assertEqual((result["similar"], result["blocked"]), (similar, blocked))
+                self.assertEqual((result["name"], result["path"]), (entry["name"], "src/x.tsx"))
 
 
 RUBRIC = """# Rubric
