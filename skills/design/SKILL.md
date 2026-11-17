@@ -171,7 +171,7 @@ Build the winner into production code, test-first, as `CRITIQUE/references/conve
 
 - **Where it goes:** the app's real locations, never a `previews` folder. Components go where the inventory's `Path / import` column puts components of their kind, and the component is used on the screen the frame names. A new component the brief approved moves out of the direction's `previews` folder to its real place, under the name the gates checked. Ask if it isn't clear where something belongs.
 - **The preview is the visual reference.** Build from its source, whose components move into production anyway. The tests decide the behaviour, and the critic below checks the look. Don't view the screenshots yourself.
-- **Point the preview at production.** Once every state's test passes, change the winner's preview to render the production component with the same fixtures, and delete its copies of the new components from the `previews` folder. The preview stays as the component's matrix.
+- **Point the preview at production.** Once every state's test passes, change the winner's preview to render the production component with the same data the tests use, and delete its copies of the new components from the `previews` folder. The preview stays as the component's matrix.
 
 **Check the result.** Gate the production files (the components and styles this step wrote), capture the preview into `RUN/production` with the winner's matrix, then gate again with its `axe.json`. Fix and capture again until the gates pass, as in step 5, for 2 rounds at most. Anything still failing after that goes in the decision record and the summary:
 
@@ -194,7 +194,7 @@ Start one `pixie:design-critic` agent with only the absolute path of `RUN/produc
 
 ## 10. Record and finish
 
-**Temporary harness.** With a `temporary` preview surface, there's no harness to keep the winner in. Ask once: install the permanent preview harness now (`SETUP/SKILL.md` step 7, offer 4, including its exclusion proof), so the winner's preview stays, or remove it with the rest. On no, remove the temporary structure as the reference's **Temporary mode** says, and note in the record that the preview wasn't kept. Step 9's production work stays: in a file both the harness and step 9 edited (a routes file), take out only the harness's lines instead of restoring the file, and when comparing with `status-before.txt`, the production files and tests are the only new lines allowed.
+**Temporary harness.** With a `temporary` preview surface, there's no harness to keep the winner in. Ask once: install the permanent preview harness now (`SETUP/SKILL.md` step 7, offer 4, including its exclusion proof), so the winner's preview stays, or remove it with the rest. On no, delete the winner's preview files (the `created` paths in its `files.txt` that step 9 didn't move into production), remove the temporary structure as the reference's **Temporary mode** says, and note in the record that the preview wasn't kept. Step 9's production work stays: in a file both the harness and step 9 edited (a routes file), take out only the harness's lines instead of restoring the file, and when comparing with `status-before.txt`, step 9's files (production code, tests and test fixtures) are the only new lines allowed.
 
 **Decision record.** Write `docs/design/decisions/YYYY-MM-DD-SLUG.md` from [references/decision-record.md](references/decision-record.md). Copy each direction's `typical` screenshots at 1280 and 390, and the winner's whole matrix at 1280, to `docs/design/decisions/YYYY-MM-DD-SLUG/` as `NAME-STATE-WIDTH.png`, and each screenshot a step 9 finding cites as `production-STATE-WIDTH.png`. They're already at most 1280 wide at device scale 1. If `oxipng` is on the PATH, run `oxipng -o 2 --strip safe` on the copies to shrink them further without changing a pixel.
 
@@ -202,13 +202,14 @@ Start one `pixie:design-critic` agent with only the absolute path of `RUN/produc
 
 **Stop what this run started.** Run the verification skill's Cleanup, or stop each process this run started. Leave the user's own processes running. Delete `RUN`.
 
-If the run stops early, before the pick: delete every direction's files as step 8 does (there's no winner), remove any temporary structure, stop the processes and delete `RUN`. If it stops after the pick: finish deleting the losers, keep the winner and any production work, write the decision record with what was built, tell the user which states still have no test, and do the rest of step 10 (the temporary harness, the processes, `RUN`).
+If the run stops early, before the pick: delete every direction's files as step 8 does (there's no winner), remove any temporary structure, stop the processes and delete `RUN`. If it stops after the pick: finish deleting the losers, and leave no test red (finish the state in progress, or remove its test). Keep the winner and the production work, and leave the preview on its own copies of the components if step 9 hadn't pointed it at production yet. Write the decision record with what was built, marking convergence unfinished and leaving out what didn't run (the production critic pass, its screenshots), tell the user which states still have no test, and do the rest of step 10 (the temporary harness, the processes, `RUN`).
 
 ## Done
 
 Tell the user:
 - the winner, and where its preview lives (slug and path), or that it wasn't kept
 - the production files and the tests, one per state, each of which failed before its code was written
+- any gate still failing on production after 2 rounds
 - the drift and other findings from the last critic pass, by severity
 - the decision record's path
 - what to commit: the production code and its tests, the record, the screenshots unless gitignored, the winner's preview, and the inventory if this run created or refreshed it

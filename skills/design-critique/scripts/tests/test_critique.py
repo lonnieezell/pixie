@@ -206,6 +206,12 @@ class BriefTest(unittest.TestCase):
             self.assertEqual(sorted(p.name for p in (run / "critic" / "approved").iterdir()),
                              ["default-1280.png", "default-390.png"])
 
+            (approved / "manifest.json").write_text(json.dumps({**MANIFEST, "shots": []}))
+            C.main(["brief", *base, "--rubric", str(root / "rubric.md"), "--approved", str(approved)])
+            C.main(["review", *base, "--findings", str(root / "found.json")])
+            self.assertEqual(json.loads((run / "findings.json").read_text())["rejected"][0]["reason"],
+                             "no approved screenshots to drift from")
+
 
 def finding(**over):
     f = {
