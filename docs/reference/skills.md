@@ -463,7 +463,6 @@ If the issue has a reproduction test from `checkup` or `catch`, it uses that tes
 - It requires no *new* test failures. Tests that already fail on the default branch are listed in the PR.
 - It doesn't wait for CI. Run `babysit` afterwards to get the PR green.
 - If it gets stuck or you interrupt it, it comments on the issue and labels it `agent-blocked`.
-- It posts progress to Orca worktree cards when Orca is installed. Without Orca, it skips this.
 
 ## tdd
 
