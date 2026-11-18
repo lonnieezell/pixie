@@ -184,6 +184,30 @@ class BriefTest(unittest.TestCase):
             self.assertFalse((critic / "neighbours").exists())
             self.assertTrue((critic / "shots" / "default-390.png").exists())
 
+    def test_issue_42_manifest_names_every_neighbour_and_approved_screenshot(self):
+        with tempfile.TemporaryDirectory() as d:
+            run, neighbours = make_run(d)
+            approved, _ = make_run(Path(d) / "winner")
+            cases = [
+                ({"neighbours": neighbours}, {"neighbours": ["neighbours/1-default-1280.png",
+                                                             "neighbours/2-default-1280.png"]},
+                 ["neighbours/1-default-1280.png", "neighbours/2-default-1280.png"]),
+                ({"approved": approved}, {"approved": [
+                    {"file": "approved/default-390.png", "state": "default", "viewport": 390},
+                    {"file": "approved/default-1280.png", "state": "default", "viewport": 1280},
+                ]}, ["approved/default-1280.png", "approved/default-390.png"]),
+                ({}, {}, []),
+            ]
+            for flags, extra, extra_files in cases:
+                with self.subTest(flags=sorted(flags)):
+                    critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, flags.get("neighbours", []),
+                                     approved=flags.get("approved"))
+                    self.assertEqual(json.loads((critic / "manifest.json").read_text()), {**MANIFEST, **extra})
+                    files = sorted(str(p.relative_to(critic)) for p in critic.rglob("*") if p.is_file())
+                    self.assertEqual(files, sorted(["context.md", "manifest.json", "rubric.md",
+                                                    "shots/default-1280.png", "shots/default-390.png",
+                                                    *extra_files]))
+
     def test_approved_direction_lets_the_critic_report_drift(self):
         drift = finding(rubric="direction.drift",
                         observed="The approved summary card above the table is missing from the production screen.")
@@ -228,7 +252,8 @@ class ReviewFindingsTest(unittest.TestCase):
     def review(self, findings):
         with tempfile.TemporaryDirectory() as d:
             run, neighbours = make_run(d)
-            critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, neighbours)
+            approved, _ = make_run(Path(d) / "winner")
+            critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, neighbours, approved=approved)
             return C.review_findings(critic, INVENTORY, findings)
 
     def test_rejects_findings_without_valid_citations(self):
@@ -240,6 +265,7 @@ class ReviewFindingsTest(unittest.TestCase):
             ({"rubric": "layout.vibes"}, "unknown rubric item"),
             ({"screenshot": "shots/empty-390.png"}, "screenshot not captured"),
             ({"screenshot": "neighbours/1-default-1280.png"}, "screenshot not captured"),
+            ({"screenshot": "approved/default-390.png"}, "screenshot not captured"),
             ({"state": "loading"}, "state does not match the screenshot"),
             ({"viewport": 1280}, "viewport does not match the screenshot"),
             ({"rubric": ["type.hierarchy"]}, "rubric must be text"),

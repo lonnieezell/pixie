@@ -69,14 +69,21 @@ def brief(run, inventory, rubric, extra, neighbours, direction="", approved=None
     for shot in manifest["shots"]:
         (critic / shot["file"]).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(run / shot["file"], critic / shot["file"])
+    # The critic can only Read, not list a folder, so the manifest names every extra screenshot it may view.
     if neighbours:
         (critic / "neighbours").mkdir()
+        manifest["neighbours"] = []
         for number, png in enumerate(map(Path, neighbours), 1):
-            shutil.copyfile(png, critic / "neighbours" / f"{number}-{png.name}")
+            name = f"neighbours/{number}-{png.name}"
+            shutil.copyfile(png, critic / name)
+            manifest["neighbours"].append(name)
     if approved:
         (critic / "approved").mkdir()
+        manifest["approved"] = []
         for shot in json.loads((Path(approved) / "manifest.json").read_text())["shots"]:
-            shutil.copyfile(Path(approved) / shot["file"], critic / "approved" / Path(shot["file"]).name)
+            name = f"approved/{Path(shot['file']).name}"
+            shutil.copyfile(Path(approved) / shot["file"], critic / name)
+            manifest["approved"].append({"file": name, "state": shot["state"], "viewport": shot["viewport"]})
     (critic / "manifest.json").write_text(json.dumps(manifest, indent=2))
     (critic / "rubric.md").write_text(merge_rubric(rubric, extra))
     (critic / "context.md").write_text(
@@ -131,9 +138,10 @@ def review_findings(critic, inventory, findings):
     """Split the critic's findings into accepted (ranked), rejected (with a reason) and suppressed."""
     critic = Path(critic)
     ids = rubric_ids((critic / "rubric.md").read_text())
-    shots = {s["file"]: s for s in json.loads((critic / "manifest.json").read_text())["shots"]}
+    manifest = json.loads((critic / "manifest.json").read_text())
+    shots = {s["file"]: s for s in manifest["shots"]}
     drop = dropped(inventory)
-    approved = (critic / "approved").is_dir() and any((critic / "approved").iterdir())
+    approved = bool(manifest.get("approved"))
     if not isinstance(findings, list) or not all(isinstance(f, dict) for f in findings):
         raise ValueError("the critic's reply must be a JSON array of finding objects")
     result = {"accepted": [], "rejected": [], "suppressed": []}
