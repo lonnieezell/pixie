@@ -190,8 +190,8 @@ In Claude Code, run:
 
 This is the longest step. Watch for these moments:
 
-1. **Claim.** Claude creates a branch named `agent/1-<short-slug>`. On the issue, it swaps `ready-for-agent` for `agent-working` and posts a claim comment. Then it runs the full test suite once to record a baseline.
-2. **Classify.** A small subagent rates the issue's difficulty and risk, and picks a route. It posts a comment like `Tier 1 (small, normal risk), route implement: ...`. A feature takes the `implement` route, which means test-driven development.
+1. **Claim.** Claude creates a branch named `agent/1-<short-slug>`. On the issue, it swaps `ready-for-agent` for `agent-working` and posts a claim comment. Then it starts the full test suite in the background to record a baseline.
+2. **Classify.** While the suite runs, a small subagent rates the issue's difficulty and risk, and picks a route. It posts a comment like `Tier 1 (small, normal risk), route implement: ...`. A feature takes the `implement` route, which means test-driven development.
 3. **Build.** Claude uses the `tdd` skill. For each slice, it writes a test, predicts how it will fail, and watches it fail that way. Then it writes just enough code to pass. Each slice becomes its own commit, such as `feat(#1): ...`.
 4. **Review.** Claude runs linters if the project has any, then Claude Code's `/simplify` and `/code-review` on the branch. It skips `/simplify` for a tier 1 change of fewer than 20 lines. The sandbox has no verification skill, so Claude skips the live check, where it would drive the changed feature in the running app, and says so in the PR.
 5. **Open the PR.** Claude pushes the branch and opens the PR. On the issue, it swaps `agent-working` for `agent-pr`.
