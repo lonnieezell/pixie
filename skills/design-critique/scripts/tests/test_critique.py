@@ -190,24 +190,23 @@ class BriefTest(unittest.TestCase):
             approved, _ = make_run(Path(d) / "winner")
             cases = [
                 ({"neighbours": neighbours}, {"neighbours": ["neighbours/1-default-1280.png",
-                                                             "neighbours/2-default-1280.png"]}),
+                                                             "neighbours/2-default-1280.png"]},
+                 ["neighbours/1-default-1280.png", "neighbours/2-default-1280.png"]),
                 ({"approved": approved}, {"approved": [
                     {"file": "approved/default-390.png", "state": "default", "viewport": 390},
                     {"file": "approved/default-1280.png", "state": "default", "viewport": 1280},
-                ]}),
-                ({}, {}),
+                ]}, ["approved/default-1280.png", "approved/default-390.png"]),
+                ({}, {}, []),
             ]
-            for flags, extra in cases:
+            for flags, extra, extra_files in cases:
                 with self.subTest(flags=sorted(flags)):
                     critic = C.brief(run, INVENTORY, RUBRIC, EXTRA, flags.get("neighbours", []),
                                      approved=flags.get("approved"))
-                    manifest = json.loads((critic / "manifest.json").read_text())
-                    self.assertEqual(manifest, {**MANIFEST, **extra})
-                    for folder in ("neighbours", "approved"):
-                        on_disk = sorted(str(p.relative_to(critic)) for p in critic.glob(f"{folder}/*"))
-                        listed = sorted(e if isinstance(e, str) else e["file"] for e in manifest.get(folder, []))
-                        self.assertEqual(listed, on_disk)
-                        self.assertEqual((critic / folder).exists(), folder in extra)
+                    self.assertEqual(json.loads((critic / "manifest.json").read_text()), {**MANIFEST, **extra})
+                    files = sorted(str(p.relative_to(critic)) for p in critic.rglob("*") if p.is_file())
+                    self.assertEqual(files, sorted(["context.md", "manifest.json", "rubric.md",
+                                                    "shots/default-1280.png", "shots/default-390.png",
+                                                    *extra_files]))
 
     def test_approved_direction_lets_the_critic_report_drift(self):
         drift = finding(rubric="direction.drift",

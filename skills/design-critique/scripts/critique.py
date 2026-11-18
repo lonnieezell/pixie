@@ -138,9 +138,10 @@ def review_findings(critic, inventory, findings):
     """Split the critic's findings into accepted (ranked), rejected (with a reason) and suppressed."""
     critic = Path(critic)
     ids = rubric_ids((critic / "rubric.md").read_text())
-    shots = {s["file"]: s for s in json.loads((critic / "manifest.json").read_text())["shots"]}
+    manifest = json.loads((critic / "manifest.json").read_text())
+    shots = {s["file"]: s for s in manifest["shots"]}
     drop = dropped(inventory)
-    approved = (critic / "approved").is_dir() and any((critic / "approved").iterdir())
+    approved = bool(manifest.get("approved"))
     if not isinstance(findings, list) or not all(isinstance(f, dict) for f in findings):
         raise ValueError("the critic's reply must be a JSON array of finding objects")
     result = {"accepted": [], "rejected": [], "suppressed": []}
