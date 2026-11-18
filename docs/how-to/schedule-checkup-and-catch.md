@@ -1,11 +1,8 @@
 # How to schedule checkup and catch
 
-This guide shows you how to run `checkup` every week and `catch` every day without anyone at the keyboard. There are two ways to do it:
+This guide shows you how to run `checkup` every week and `catch` every day without anyone at the keyboard, using GitHub Actions on a throwaway runner.
 
-- **[GitHub Actions](#github-actions)** runs on a throwaway runner. Use it for a team repo, or when no machine of yours is always on.
-- **[Orca](#orca)** runs on your own machine, in a fresh Orca worktree for each run. Use it when you already work in Orca and want to watch the runs there.
-
-Both pass `unattended`, so the skills never ask questions. They file issues, and `checkup` publishes its baseline PR. Neither one ever merges, approves or closes anything.
+The workflows pass `unattended`, so the skills never ask questions. They file issues, and `checkup` publishes its baseline PR. Neither skill ever merges, approves or closes anything.
 
 ## Decide on auto-fix first
 
@@ -137,115 +134,8 @@ The runner is a throwaway VM, so the workflows skip Claude Code's permission pro
 
 Don't upload `ai/` as a workflow artifact on a public repo. The report names unfixed security findings.
 
-## Orca
-
-An Orca automation runs a prompt on a schedule, in a new Orca worktree for each run. It runs on your machine, as you:
-
-- Issues and PRs are filed with your `gh` login.
-- Your machine must be awake and Orca must be running when a run is due. `--missed-run-grace-minutes` sets how late a run can still start.
-- Each run appears in Orca, so you can watch it or read it afterwards.
-
-### 1. Let the run work without prompts
-
-Orca starts Claude with your usual permission settings. Any permission prompt stalls an unattended run until someone answers it in Orca. Also, Orca's `--extra-agent-args` accepts only model, effort and `--add-dir`, so you can't pass a permission flag there.
-
-Set permissions in the repo instead. First, get the allow rules for your install:
-
-```
-/pixie:checkup permissions
-```
-
-It prints the rules for the steps that write to GitHub, with the exact path to the plugin's script. Put them in `.claude/settings.local.json`, which isn't committed:
-
-```json
-{
-  "permissions": {
-    "defaultMode": "acceptEdits",
-    "allow": [
-      "...the rules /pixie:checkup permissions printed..."
-    ]
-  }
-}
-```
-
-- `acceptEdits` lets the run write its files under `ai/` without asking. It also applies to every other Claude session in this repo.
-- The `allow` rules cover `file`, `promote` and `publish`, the steps that write to GitHub, for both `checkup` and `catch`. The other steps are already allowed by the skills.
-- The rules use an exact path because a `*` after `python3` also matches options such as `-c`. That would approve any Python code without a prompt, and Claude Code warns about it.
-- The path includes the plugin version. After you update pixie, run `/pixie:checkup permissions` again and replace the rules.
-- `checkup` also runs the audit and lint tools your repo has, such as `npm audit`. Add rules for the ones you want it to run, or it will stop and ask.
-
-Test with a manual run (step 3) and watch for prompts. Add a rule for each one you see.
-
-### 2. Create the automations
-
-Use your repo's absolute path in `--repo`. Each command creates the automation disabled, so you can test it first.
-
-Weekly `checkup`, Mondays at 06:00:
-
-```bash
-orca automations create --name "pixie checkup" \
-  --trigger weekly --day 1 --time 06:00 \
-  --provider claude --repo path:/abs/path/to/repo --setup skip \
-  --prompt "/pixie:checkup unattended" --disabled --json
-```
-
-Daily `catch`, at 13:00:
-
-```bash
-orca automations create --name "pixie catch" \
-  --trigger daily --time 13:00 \
-  --provider claude --repo path:/abs/path/to/repo --setup skip \
-  --prompt "/pixie:catch unattended" --disabled --json
-```
-
-This audits only the shards that changed since the baseline. For an occasional full re-audit, create a second, monthly automation with the prompt `/pixie:checkup unattended full`.
-
-Orca has no concurrency group, so schedule the two far enough apart that they don't overlap. A full `checkup` can take a few hours on a large repo.
-
-`catch` reads `SENTRY_AUTH_TOKEN` and `CORALOGIX_API_KEY` from the environment Orca starts Claude in. Export them where that environment picks them up, such as your shell profile.
-
-Each run works in a new worktree created from the repo's base ref. Check that it points at your default branch with `orca repo show`, and change it with `orca repo set-base-ref`. The run's files, including `report.md`, are under `ai/` in that worktree.
-
-### 3. Test and enable
-
-Run each automation once by hand, watch it in Orca, and check its history:
-
-```bash
-orca automations list --json
-orca automations run <automationId> --json
-orca automations runs --id <automationId> --json
-```
-
-When it runs from start to finish without a prompt, enable it:
-
-```bash
-orca automations edit <automationId> --enabled --json
-```
-
-### 4. Hand queued issues to tackle
-
-With `fix` in the prompt, `checkup` and `catch` queue proven issues as `ready-for-agent`, but can't start `tackle`. Start one Orca worktree per queued issue from the repo root:
-
-```bash
-for n in $(gh issue list --label ready-for-agent --json number -q '.[].number'); do
-  orca worktree create --name "tackle-$n" --repo path:"$PWD" --no-parent \
-    --issue "$n" --agent claude --prompt "/pixie:tackle $n"
-done
-```
-
-If your repo maps `ready-for-agent` to another label in `docs/agents/pixie-labels.md`, use that label here. `tackle` posts its progress to each worktree's card in Orca.
-
-### 5. Clean up old worktrees
-
-Every run leaves a worktree behind. List them with `orca worktree list` and remove old ones with `orca worktree rm`.
-
-### Regressions
-
-Orca has nothing like a failing job. To see whether a `checkup` run regressed, read the scores section of its `report.md`, or the baseline PR.
-
 ## What a run leaves behind
 
-Both ways leave the same things:
 
 - Issues labeled `needs-triage`, or `ready-for-agent` when auto-fix queued them
 - A rolling `checkup/baseline` PR, for whole-repo `checkup` runs. Merge it when you accept the scores.
