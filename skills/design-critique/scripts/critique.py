@@ -83,7 +83,7 @@ def brief(run, inventory, rubric, extra, neighbours, direction="", approved=None
         for shot in json.loads((Path(approved) / "manifest.json").read_text())["shots"]:
             name = f"approved/{Path(shot['file']).name}"
             shutil.copyfile(Path(approved) / shot["file"], critic / name)
-            manifest["approved"].append({**shot, "file": name})
+            manifest["approved"].append({"file": name, "state": shot["state"], "viewport": shot["viewport"]})
     (critic / "manifest.json").write_text(json.dumps(manifest, indent=2))
     (critic / "rubric.md").write_text(merge_rubric(rubric, extra))
     (critic / "context.md").write_text(
